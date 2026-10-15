@@ -27,3 +27,9 @@ jobs:
         run: |
           swiftc ci/TraceFoxPrivacyPolicy.swift ci/TraceFoxPrivacyRuntime.swift tests/archive-fixtures/Network.swift tests/privacy-policy-main.swift -o "$RUNNER_TEMP/privacy-policy-test"
           "$RUNNER_TEMP/privacy-policy-test"
+      - name: Test actual privacy control with synchronous API fixtures
+        run: |
+          swiftc -emit-module -emit-library -module-name SwiftSignalKit tests/archive-fixtures/SwiftSignalKit.swift -emit-module-path "$RUNNER_TEMP/SwiftSignalKit.swiftmodule" -o "$RUNNER_TEMP/libSwiftSignalKit.dylib"
+          swiftc -emit-module -emit-library -module-name TelegramApi tests/archive-fixtures/TelegramApi.swift -emit-module-path "$RUNNER_TEMP/TelegramApi.swiftmodule" -o "$RUNNER_TEMP/libTelegramApi.dylib"
+          swiftc -D CONTROL_TEST -I "$RUNNER_TEMP" -L "$RUNNER_TEMP" -lSwiftSignalKit -lTelegramApi ci/TraceFoxPrivacyPolicy.swift ci/TraceFoxPrivacyRuntime.swift ci/TraceFoxPrivacyControl.swift tests/archive-fixtures/Network.swift tests/privacy-control-main.swift -o "$RUNNER_TEMP/privacy-control-test"
+          DYLD_LIBRARY_PATH="$RUNNER_TEMP" "$RUNNER_TEMP/privacy-control-test"

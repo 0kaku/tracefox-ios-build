@@ -44,7 +44,8 @@ private final class PrivacyScreenModel {
             self.current.busy = false
             switch error {
             case .settingsWriteFailed:
-                self.current.message = "Не вдалося зберегти налаштування. Стан не змінено."
+                self.current.enabled = (try? TraceFoxPrivacyRuntime.preferences(network: self.context.account.network).readEnabled()) ?? true
+                self.current.message = "Не вдалося завершити збереження налаштувань. Показано поточний стан захисту."
             case .offlineUpdateFailed:
                 self.current.enabled = target
                 self.current.needsRetry = true
