@@ -177,12 +177,13 @@ def compile_app(source, output, build_number):
         target = output / "TraceFox-iOS-build-test-unsigned.ipa"
         shutil.copyfile(ipa, target)
         report.update(source_commit=COMMIT, build_number=build_number, login_enabled=login_enabled(),
-                      tracefox_bot_integrated=False, baseline_only=True, darkgram_features_integrated=False,
+                      tracefox_bot_integrated=False, baseline_only=not login_enabled(), darkgram_features_integrated=False,
                       excluded_source_files=sum(ORPHAN_SOURCES.values(), []), size=target.stat().st_size)
         report.update(tracefox_settings_integrated=login_enabled(), cloud_archive_bot_link=login_enabled(),
                       device_tested=False, signing_required=True, local_media_archive=login_enabled(), ghost_mode=False,
-                      local_archive_scope='explicit-message-deletion helper only; completed local media',
-                      edit_history=False, temporary_media_expiry_hooks=False, local_archive_browser=login_enabled())
+                      local_archive_scope='deletion, read and native timer expiry hooks; completed local media only',
+                      edit_history=login_enabled(), edit_history_scope='plain text only; 100 prior versions / 512 KiB',
+                      temporary_media_expiry_hooks=login_enabled(), local_archive_browser=login_enabled())
         digest = hashlib.sha256()
         with target.open("rb") as stream:
             for chunk in iter(lambda: stream.read(1024 * 1024), b""):

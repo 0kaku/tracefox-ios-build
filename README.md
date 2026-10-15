@@ -134,3 +134,38 @@ The browser shows up to 100 records with at most 3,000 visible text characters
 per row; sharing uses the full saved text and available retained files.
 Private archive roots are excluded from system backup and use iOS file protection.
 This code still needs full iPhone build and device verification.
+
+## Staged temporary-media follow-up (not in queued native build yet)
+
+Local source patches capture available media before interactive read, timer expiry
+and remote descriptor invalidation, passing the account MediaBox to all three
+remote-consumption callers. Native reads, timer values and media expiry still run.
+An already retained read-stage file is reused when marking its record deleted;
+metadata-only records can retry capture when the complete local resource appears.
+Optional ttlSeconds metadata distinguishes one-view and timers while decoding
+older JSON without this field. Fourteen local source/configuration tests pass.
+Standalone macOS tests cover the optional-field migration separately; full Swift
+integration and actual phone playback remain unverified. These changes are staged
+for the next native build, avoiding repeated cancellation of queued full builds.
+
+## Capture bridge regression checks
+
+The separate archive workflow now compiles the actual TraceFoxLocalArchive Swift
+file against small host-only Postbox/media API fixtures. It exercises metadata-only
+retry after download, largest completed photo selection, one-view precedence,
+retained-file disappearance and recovery, read-to-delete transition, duplicate
+events, cache unlink survival and per-account isolation. Fixtures do not emulate
+Telegram transport, native type compatibility, secret decryption or device UI;
+those still require the full integration build and an iPhone. The native build
+queue is not restarted by these standalone tests.
+
+## Staged plain-text edit history
+
+The native replay patch snapshots the previous plain text before `.EditMessage`
+updates the Postbox row. The independent record keeps the newest text and up to
+100 previous versions / 512 KiB of history, suppresses repeated adjacent versions,
+and carries history through deletion and optional-schema migration. The browser
+previews three prior versions and its share action includes all retained versions.
+This initial edit hook excludes both captioned messages and attachment changes.
+Native source integration is staged for the next full build; standalone storage
+and actual bridge code are tested on macOS with explicit host API fixtures.

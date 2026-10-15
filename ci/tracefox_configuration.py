@@ -3,6 +3,7 @@ import json
 import os
 import re
 from pathlib import Path
+from tracefox_temporary_media import temporary_media_changes
 from urllib.parse import urlparse
 
 
@@ -82,4 +83,15 @@ def integration_changes(source):
         raise RuntimeError('Native delete-messages entry point changed')
     changes[deletion] = (original, original.replace(signature, signature +
         '    TraceFoxLocalArchive.captureDeleted(transaction: transaction, mediaBox: mediaBox, ids: ids)\n'))
+    changes.update(temporary_media_changes(source))
+    edit_file = source / 'submodules/TelegramCore/Sources/State/AccountStateManagementUtils.swift'
+    original, modified = changes[edit_file]
+    edit_anchor = '            case let .EditMessage(id, message):\n                var generatedEvent:'
+    if modified.count(edit_anchor) != 1:
+        raise RuntimeError('Native edit-message replay entry changed')
+    modified = modified.replace(edit_anchor,
+        '            case let .EditMessage(id, message):\n'
+        '                TraceFoxLocalArchive.captureTextEdit(transaction: transaction, mediaBox: mediaBox, id: id, updatedText: message.text, updatedHasMedia: !message.media.isEmpty)\n'
+        '                var generatedEvent:')
+    changes[edit_file] = (original, modified)
     return changes

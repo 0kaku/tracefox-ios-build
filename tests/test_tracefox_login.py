@@ -48,6 +48,10 @@ class TraceFoxLoginTest(unittest.TestCase):
         self.assertLess(after.index('TraceFoxLocalArchive.captureDeleted'), after.index('mediaBox.removeCachedResources'))
         self.assertEqual(after.replace('    TraceFoxLocalArchive.captureDeleted(transaction: transaction, mediaBox: mediaBox, ids: ids)\n', ''), before)
         self.assertIn('pushControllerImpl?(traceFoxArchiveController(context: context))', modified)
+        state = changes[source/'submodules/TelegramCore/Sources/State/AccountStateManagementUtils.swift'][1]
+        replay = state.split('case let .EditMessage(id, message):', 1)[1]
+        self.assertLess(replay.index('TraceFoxLocalArchive.captureTextEdit'), replay.index('transaction.updateMessage(id'))
+        self.assertIn('updatedHasMedia: !message.media.isEmpty', replay)
         for target in ['submodules/TelegramCore/Sources/Swiftgram/TraceFoxArchiveStore.swift',
                        'submodules/TelegramCore/Sources/Swiftgram/TraceFoxLocalArchive.swift',
                        'Swiftgram/SGSettingsUI/Sources/TraceFoxArchiveController.swift']:

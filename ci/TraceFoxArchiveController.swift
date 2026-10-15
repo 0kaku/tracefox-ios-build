@@ -39,8 +39,15 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
         formatter.dateStyle = .short; formatter.timeStyle = .short
         for (index, record) in records.enumerated() {
             let title = formatter.string(from: Date(timeIntervalSince1970: TimeInterval(record.timestamp)))
+            let lifetime: String
+            if record.ttlSeconds == Int32.max { lifetime = " · Один перегляд" }
+            else if let ttl = record.ttlSeconds, ttl > 0 { lifetime = " · Таймер \(ttl) с" }
+            else { lifetime = "" }
+            let history = (record.previousTexts ?? []).suffix(3).reversed().map {
+                "\nПопередній текст:\n" + String($0.prefix(1000))
+            }.joined()
             entries.append(.notice(id: 3 + index * 2, section: .messages,
-                text: title + " · Чат \(record.peer)\n" + String(record.text.prefix(3000)) + "\nФайлів: \(record.files.count)"))
+                text: title + " · Чат \(record.peer)" + lifetime + "\n" + String(record.text.prefix(3000)) + history + "\nФайлів: \(record.files.count)"))
             entries.append(.action(id: 4 + index * 2, section: .messages, actionType: index,
                 text: "Відкрити / поділитися копією", kind: .generic))
         }
@@ -56,6 +63,9 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
         guard let controller = controller else { return }
         var items: [Any] = []
         if !record.text.isEmpty { items.append(record.text) }
+        if let history = record.previousTexts, !history.isEmpty {
+            items.append("Попередні версії тексту:\n\n" + history.joined(separator: "\n\n———\n\n"))
+        }
         if let store = try? TraceFoxLocalArchive.store(mediaBox: context.account.postbox.mediaBox) {
             for name in record.files { if let url = try? store.mediaURL(name: name) { items.append(url) } }
         }
