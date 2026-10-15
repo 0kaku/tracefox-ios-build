@@ -11,11 +11,13 @@ public struct TraceFoxArchiveRecord: Codable {
     public let text: String
     public let deleted: Bool
     public let files: [String]
+    public let ttlSeconds: Int32?
 
     public init(peer: Int64, namespace: Int32, message: Int32, timestamp: Int32,
-                text: String, deleted: Bool, files: [String]) {
+                text: String, deleted: Bool, files: [String], ttlSeconds: Int32? = nil) {
         self.peer = peer; self.namespace = namespace; self.message = message
         self.timestamp = timestamp; self.text = text; self.deleted = deleted; self.files = files
+        self.ttlSeconds = ttlSeconds
     }
     fileprivate var key: String { return "\(peer)_\(namespace)_\(message)" }
 }
