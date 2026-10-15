@@ -51,7 +51,7 @@ public final class TraceFoxArchiveStore {
 
     // Hard-link before cleanup: unlinking Telegram's cache cannot remove our
     // independent name. copyItem handles a source on a different volume.
-    public func retain(source: URL, peer: Int64, namespace: Int32, message: Int32) throws -> String {
+    public func retain(source: URL, peer: Int64, namespace: Int32, message: Int32, fileExtension: String = "bin") throws -> String {
         lock.lock(); defer { lock.unlock() }
         let resolved = source.resolvingSymlinksInPath()
         let attributes = try manager.attributesOfItem(atPath: resolved.path)
@@ -60,12 +60,12 @@ public final class TraceFoxArchiveStore {
               size > 0, size <= maxFile else { throw CocoaError(.fileReadTooLarge) }
         var used: Int64 = 0
         for item in try manager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) {
-            if item.pathExtension == "media" {
-                used += ((try manager.attributesOfItem(atPath: item.path))[.size] as? NSNumber)?.int64Value ?? 0
-            }
+            used += ((try manager.attributesOfItem(atPath: item.path))[.size] as? NSNumber)?.int64Value ?? 0
         }
         guard used + size <= maxTotal else { throw CocoaError(.fileWriteOutOfSpace) }
-        let name = "\(peer)_\(namespace)_\(message)_\(UUID().uuidString).media"
+        let proposed = fileExtension.lowercased()
+        let ext = proposed.range(of: "^[a-z0-9]{1,8}$", options: .regularExpression) != nil ? proposed : "bin"
+        let name = "\(peer)_\(namespace)_\(message)_\(UUID().uuidString).media.\(ext)"
         let target = try file(name)
         do { try manager.linkItem(at: resolved, to: target) }
         catch { try manager.copyItem(at: resolved, to: target) }
@@ -108,7 +108,8 @@ public final class TraceFoxArchiveStore {
     public func mediaURL(name: String) throws -> URL {
         lock.lock(); defer { lock.unlock() }
         let value = try file(name)
-        guard manager.fileExists(atPath: value.path), value.pathExtension == "media" else {
+        let isMedia = value.pathExtension == "media" || name.range(of: "\\.media\\.[a-z0-9]{1,8}$", options: .regularExpression) != nil
+        guard manager.fileExists(atPath: value.path), isMedia else {
             throw CocoaError(.fileNoSuchFile)
         }
         return value

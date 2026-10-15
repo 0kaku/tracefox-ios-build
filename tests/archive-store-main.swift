@@ -10,7 +10,8 @@ import Foundation
         let source = folder.appendingPathComponent("telegram-cache")
         let original = Data((0..<131103).map { UInt8($0 % 251) })
         try original.write(to: source)
-        let name = try first.retain(source: source, peer: -42, namespace: 0, message: -7)
+        let name = try first.retain(source: source, peer: -42, namespace: 0, message: -7, fileExtension: "JPG")
+        precondition(name.hasSuffix(".media.jpg"))
         try first.save(TraceFoxArchiveRecord(peer: -42, namespace: 0, message: -7,
             timestamp: 100, text: "Тест", deleted: true, files: [name]))
         try manager.removeItem(at: source)

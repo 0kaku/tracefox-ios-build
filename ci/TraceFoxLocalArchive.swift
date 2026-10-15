@@ -22,21 +22,24 @@ public enum TraceFoxLocalArchive {
         for id in ids {
             if (try? archive.record(peer: id.peerId.toInt64(), namespace: id.namespace, message: id.id)) != nil { continue }
             guard let message = transaction.getMessage(id) else { continue }
-            var resources: [MediaResource] = []
+            var resources: [(MediaResource, String)] = []
             for media in message.media {
                 if let image = media as? TelegramMediaImage {
                     if let largest = image.representations.max(by: {
                         Int64($0.dimensions.width) * Int64($0.dimensions.height) < Int64($1.dimensions.width) * Int64($1.dimensions.height)
-                    }) { resources.append(largest.resource) }
+                    }) { resources.append((largest.resource, "jpg")) }
                 } else if let file = media as? TelegramMediaFile {
-                    resources.append(file.resource)
+                    let filenameExtension = ((file.fileName ?? "") as NSString).pathExtension
+                    let fallback = ["video/mp4": "mp4", "image/jpeg": "jpg", "image/png": "png",
+                        "audio/ogg": "ogg", "audio/mpeg": "mp3", "application/pdf": "pdf"][file.mimeType] ?? "bin"
+                    resources.append((file.resource, filenameExtension.isEmpty ? fallback : filenameExtension))
                 }
             }
             var names: [String] = []
-            for resource in resources {
+            for (resource, ext) in resources {
                 if let path = mediaBox.completedResourcePath(resource),
                    let name = try? archive.retain(source: URL(fileURLWithPath: path),
-                        peer: id.peerId.toInt64(), namespace: id.namespace, message: id.id) {
+                        peer: id.peerId.toInt64(), namespace: id.namespace, message: id.id, fileExtension: ext) {
                     names.append(name)
                 }
             }
