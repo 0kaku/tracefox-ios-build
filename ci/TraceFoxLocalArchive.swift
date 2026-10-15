@@ -18,14 +18,42 @@ public enum TraceFoxLocalArchive {
     // Only completed local resources are retained; no network downloads or
     // session/secret-chat keys are serialized into this archive.
     static func captureDeleted(transaction: Transaction, mediaBox: MediaBox, ids: [MessageId]) {
+        capture(transaction: transaction, mediaBox: mediaBox, ids: ids, deleted: true)
+    }
+
+    static func captureAvailable(transaction: Transaction, mediaBox: MediaBox, ids: [MessageId]) {
+        capture(transaction: transaction, mediaBox: mediaBox, ids: ids, deleted: false)
+    }
+
+    private static func capture(transaction: Transaction, mediaBox: MediaBox, ids: [MessageId], deleted: Bool) {
         guard let archive = try? store(mediaBox: mediaBox) else { return }
         for id in ids {
-            if (try? archive.record(peer: id.peerId.toInt64(), namespace: id.namespace, message: id.id)) != nil { continue }
+            let previous = try? archive.record(peer: id.peerId.toInt64(), namespace: id.namespace, message: id.id)
+            if let previous = previous, !previous.files.isEmpty,
+               previous.files.allSatisfy({ (try? archive.mediaURL(name: $0)) != nil }) {
+                if deleted && !previous.deleted {
+                    try? archive.save(TraceFoxArchiveRecord(peer: previous.peer, namespace: previous.namespace,
+                        message: previous.message, timestamp: previous.timestamp, text: previous.text,
+                        deleted: true, files: previous.files, ttlSeconds: previous.ttlSeconds))
+                }
+                continue
+            }
             guard let message = transaction.getMessage(id) else { continue }
+            var ttl: Int32?
+            for attribute in message.attributes {
+                let candidate: Int32?
+                if let value = attribute as? AutoremoveTimeoutMessageAttribute { candidate = value.timeout }
+                else if let value = attribute as? AutoclearTimeoutMessageAttribute { candidate = value.timeout }
+                else { candidate = nil }
+                if let candidate = candidate, candidate > 0 {
+                    if candidate == viewOnceTimeout { ttl = candidate; break }
+                    if ttl == nil { ttl = candidate }
+                }
+            }
             var resources: [(MediaResource, String)] = []
             for media in message.media {
                 if let image = media as? TelegramMediaImage {
-                    if let largest = image.representations.max(by: {
+                    if let largest = image.representations.filter({ mediaBox.completedResourcePath($0.resource) != nil }).max(by: {
                         Int64($0.dimensions.width) * Int64($0.dimensions.height) < Int64($1.dimensions.width) * Int64($1.dimensions.height)
                     }) { resources.append((largest.resource, "jpg")) }
                 } else if let file = media as? TelegramMediaFile {
@@ -44,7 +72,8 @@ public enum TraceFoxLocalArchive {
                 }
             }
             try? archive.save(TraceFoxArchiveRecord(peer: id.peerId.toInt64(), namespace: id.namespace,
-                message: id.id, timestamp: message.timestamp, text: message.text, deleted: true, files: names))
+                message: id.id, timestamp: message.timestamp, text: message.text,
+                deleted: deleted || (previous?.deleted ?? false), files: names, ttlSeconds: ttl ?? previous?.ttlSeconds))
         }
     }
 }
