@@ -49,6 +49,22 @@ import Postbox
         precondition(retained == bytes)
         let other = try TraceFoxLocalArchive.store(mediaBox: foreign).records()
         precondition(other.isEmpty)
+        let editId = MessageId(peerId: PeerId(42), namespace: 0, id: 51)
+        tx.messages[editId] = Message(timestamp: 20, text: "first", media: [], attributes: [])
+        TraceFoxLocalArchive.captureTextEdit(transaction: tx, mediaBox: box, id: editId, updatedText: "second", updatedHasMedia: false)
+        TraceFoxLocalArchive.captureTextEdit(transaction: tx, mediaBox: box, id: editId, updatedText: "second", updatedHasMedia: false)
+        tx.messages[editId] = Message(timestamp: 20, text: "second", media: [], attributes: [])
+        TraceFoxLocalArchive.captureTextEdit(transaction: tx, mediaBox: box, id: editId, updatedText: "third", updatedHasMedia: false)
+        tx.messages[editId] = Message(timestamp: 20, text: "third", media: [], attributes: [])
+        TraceFoxLocalArchive.captureDeleted(transaction: tx, mediaBox: box, ids: [editId])
+        let edited = try store.record(peer: 42, namespace: 0, message: 51)!
+        precondition(edited.deleted && edited.text == "third" && edited.previousTexts == ["first", "second"])
+        let attachmentId = MessageId(peerId: PeerId(42), namespace: 0, id: 52)
+        tx.messages[attachmentId] = Message(timestamp: 20, text: "caption", media: [image], attributes: [])
+        TraceFoxLocalArchive.captureTextEdit(transaction: tx, mediaBox: box, id: attachmentId, updatedText: "new caption", updatedHasMedia: true)
+        let skipped = try store.record(peer: 42, namespace: 0, message: 52)
+        precondition(skipped == nil)
+        print("PASS: actual Swift edit capture: prior texts, duplicate suppression, latest text, history survives deletion, attachment edits excluded")
         print("PASS: actual Swift capture bridge: incomplete retry, available photo size, one-view precedence, missing-file recovery, read-to-delete transition, duplicate events and account isolation")
     }
 }

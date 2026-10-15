@@ -12,12 +12,14 @@ public struct TraceFoxArchiveRecord: Codable {
     public let deleted: Bool
     public let files: [String]
     public let ttlSeconds: Int32?
+    public let previousTexts: [String]?
 
     public init(peer: Int64, namespace: Int32, message: Int32, timestamp: Int32,
-                text: String, deleted: Bool, files: [String], ttlSeconds: Int32? = nil) {
+                text: String, deleted: Bool, files: [String], ttlSeconds: Int32? = nil, previousTexts: [String]? = nil) {
         self.peer = peer; self.namespace = namespace; self.message = message
         self.timestamp = timestamp; self.text = text; self.deleted = deleted; self.files = files
         self.ttlSeconds = ttlSeconds
+        self.previousTexts = previousTexts
     }
     fileprivate var key: String { return "\(peer)_\(namespace)_\(message)" }
 }
@@ -105,6 +107,22 @@ public final class TraceFoxArchiveStore {
         let path = try file("\(peer)_\(namespace)_\(message).json")
         guard manager.fileExists(atPath: path.path) else { return nil }
         return try JSONDecoder().decode(TraceFoxArchiveRecord.self, from: Data(contentsOf: path))
+    }
+
+    public func saveTextEdit(peer: Int64, namespace: Int32, message: Int32, timestamp: Int32,
+                             previousText: String, updatedText: String) throws {
+        lock.lock(); defer { lock.unlock() }
+        guard previousText != updatedText else { return }
+        let existing = try record(peer: peer, namespace: namespace, message: message)
+        var history = existing?.previousTexts ?? []
+        if history.last != previousText { history.append(previousText) }
+        var bytes = history.reduce(0) { $0 + $1.utf8.count }
+        while history.count > 100 || bytes > 512 * 1024 {
+            bytes -= history.removeFirst().utf8.count
+        }
+        try save(TraceFoxArchiveRecord(peer: peer, namespace: namespace, message: message,
+            timestamp: timestamp, text: updatedText, deleted: existing?.deleted ?? false,
+            files: [], ttlSeconds: existing?.ttlSeconds, previousTexts: history))
     }
 
     public func mediaURL(name: String) throws -> URL {

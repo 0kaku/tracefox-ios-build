@@ -26,6 +26,18 @@ import Foundation
         let legacy = Data("{\"peer\":1,\"namespace\":0,\"message\":1,\"timestamp\":1,\"text\":\"old\",\"deleted\":false,\"files\":[]}".utf8)
         let old = try JSONDecoder().decode(TraceFoxArchiveRecord.self, from: legacy)
         precondition(old.ttlSeconds == nil)
+        precondition(old.previousTexts == nil)
+        for index in 0..<105 {
+            try first.saveTextEdit(peer: 42, namespace: 0, message: 55, timestamp: 20,
+                previousText: "v\(index)", updatedText: "v\(index + 1)")
+        }
+        let edited = try first.record(peer: 42, namespace: 0, message: 55)!
+        precondition(edited.text == "v105" && edited.previousTexts?.count == 100)
+        precondition(edited.previousTexts?.first == "v5" && edited.previousTexts?.last == "v104")
+        try first.saveTextEdit(peer: 42, namespace: 0, message: 55, timestamp: 20,
+            previousText: "v104", updatedText: "v105")
+        let duplicate = try first.record(peer: 42, namespace: 0, message: 55)!
+        precondition(duplicate.previousTexts == edited.previousTexts)
         let foreign = try second.records()
         precondition(foreign.isEmpty)
         let exact = try first.record(peer: -42, namespace: 0, message: -7)
