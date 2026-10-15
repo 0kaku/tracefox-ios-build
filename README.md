@@ -69,3 +69,18 @@ python ci/unsigned_build.py --source D:/TraceFoxBuild/tracefox-darkgram-ios --ou
 
 The second command validates the upstream commit, toolchain versions and required files.
 It does not compile Swift. Building requires the macOS runner.
+
+## Selection-panel source fix
+
+The pinned source also places an unused DarkgramAISelectionActions.swift file in
+ChatMessageSelectionInputPanelNode. Its imports are absent from that target's
+dependencies, and its only entry function has no caller in the panel sources.
+The compilation test excludes that one orphan file from the panel source glob.
+The normal selection panel remains included; AI features are not implemented by
+this fix. The upstream BUILD file is restored after the attempt.
+
+The same audit identified seven unused AI/VoiceLab UI and runtime files across
+four targets. Twenty entry functions have no references outside that excluded
+group in Swiftgram or TelegramUI sources. All seven are excluded by exact path
+in this compilation test; all other source glob members remain unchanged.
+This is not a port or a working implementation of those optional features.

@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -22,14 +23,14 @@ def check_source(source):
     head = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"], text=True).strip()
     if head != COMMIT:
         raise RuntimeError("Source commit differs from the reviewed build recipe")
-    versions = json.loads((source / "versions.json").read_text())
+    versions = json.loads((source / "versions.json").read_text(encoding="utf-8"))
     if versions["xcode"] != "26.2" or not versions["bazel"].startswith("8.4.2:"):
         raise RuntimeError("Upstream toolchain changed; review the recipe")
     for path in ["build-system/Make/Make.py", "submodules/TelegramCore/BUILD", "Swiftgram/SGSettingsUI/BUILD"]:
         if not (source / path).is_file():
             raise RuntimeError("Missing source dependency: " + path)
     signing = source / "build-system/bazel-rules/rules_apple/apple/internal/codesigning_support.bzl"
-    if 'if "disable_legacy_signing" in features:' not in signing.read_text():
+    if 'if "disable_legacy_signing" in features:' not in signing.read_text(encoding="utf-8"):
         raise RuntimeError("Upstream no-signing support changed")
     return versions
 
@@ -65,11 +66,37 @@ def configuration():
                                      "bot_username": "tracefox_build_test", "iaps": []}, separators=(",", ":"))}
 
 
+ORPHAN_SOURCES = {
+    "submodules/TelegramUI/Components/Chat/ChatMessageSelectionInputPanelNode": [
+        "Sources/DarkgramAISelectionActions.swift"],
+    "submodules/TelegramUI/Components/Chat/ChatTextInputPanelNode": [
+        "Sources/DarkgramAIComposeRuntime.swift"],
+    "Swiftgram/SGSettingsUI": [
+        "Sources/DarkgramAISettingsController.swift", "Sources/DarkgramAIAPIKeysController.swift",
+        "Sources/DarkgramVoiceLabSettingsController.swift"],
+    "submodules/TelegramUI": [
+        "Sources/Chat/DarkgramAIRuntime.swift", "Sources/Chat/DarkgramAIMessageActions.swift"],
+}
+
+
+def orphan_source_changes(source):
+    changes = {}
+    pattern = re.compile(r'(srcs = glob\(\[\s*"Sources/\*\*/\*\.swift",\s*\])(\))')
+    for package, excluded in ORPHAN_SOURCES.items():
+        path = source / package / "BUILD"
+        original = path.read_text(encoding="utf-8")
+        if len(pattern.findall(original)) != 1:
+            raise RuntimeError("Orphan-source rule changed: " + package)
+        replacement = pattern.sub(lambda match: match[1] + ", exclude = " + json.dumps(excluded) + match[2], original)
+        changes[path] = (original, replacement)
+    return changes
+
+
 def unsigned_source_changes(source):
     build_file = source / "Telegram/BUILD"
     rules_file = source / "build-system/bazel-rules/rules_apple/apple/internal/ios_rules.bzl"
-    original = build_file.read_text()
-    rules = rules_file.read_text()
+    original = build_file.read_text(encoding="utf-8")
+    rules = rules_file.read_text(encoding="utf-8")
     watch = '    watch_application = ":TelegramWatchApp", # MARK: Swiftgram'
     profile = "    if platform_prerequisites.platform.is_device:\n        processor_partials.append(\n            partials.provisioning_profile_partial("
     if original.count(watch) != 1 or profile not in rules:
@@ -80,7 +107,7 @@ def unsigned_source_changes(source):
         '    if platform_prerequisites.platform.is_device and "disable_legacy_signing" not in platform_prerequisites.features:\n'
         '        processor_partials.append(\n            partials.provisioning_profile_partial(', 1)
     metal_file = source / "build-system/bazel-rules/rules_apple/apple/internal/resource_actions/metals.bzl"
-    metal = metal_file.read_text()
+    metal = metal_file.read_text(encoding="utf-8")
     metal_input = "            inputs = [input_metal] + hdrs,"
     if metal.count(metal_input) != 1:
         raise RuntimeError("Metal input rule changed; review included shader dependencies")
@@ -90,10 +117,13 @@ def unsigned_source_changes(source):
     compatibility = source / "Swiftgram/SGSimpleSettings/Sources/TraceFoxCompileSyncCompatibility.swift"
     if compatibility.exists():
         raise RuntimeError("Upstream already defines the compile-test compatibility file")
-    compatibility_text = (Path(__file__).parent / "TraceFoxCompileSyncCompatibility.swift").read_text()
-    return {build_file: (original, original.replace(watch, '    watch_application = None, # build-test only')),
-            rules_file: (rules, patched_rules), metal_file: (metal, patched_metal),
-            compatibility: (None, compatibility_text)}
+    compatibility_text = (Path(__file__).parent / "TraceFoxCompileSyncCompatibility.swift").read_text(encoding="utf-8")
+    changes = {build_file: (original, original.replace(watch, '    watch_application = None, # build-test only')),
+               rules_file: (rules, patched_rules), metal_file: (metal, patched_metal),
+               compatibility: (None, compatibility_text)}
+    changes.update(orphan_source_changes(source))
+    return changes
+
 
 
 def compile_app(source, output, build_number):
