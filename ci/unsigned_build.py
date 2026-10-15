@@ -62,7 +62,7 @@ def configuration():
             "is_appstore_build": "false", "appstore_id": "0", "app_specific_url_scheme": "tracefoxbuildtest",
             "premium_iap_product_id": "", "enable_siri": False, "enable_icloud": False,
             "sg_config": json.dumps({"api_url": "https://example.invalid", "webapp_url": "https://example.invalid",
-                                     "bot_username": "tracefox_build_test", "iaps": []})}
+                                     "bot_username": "tracefox_build_test", "iaps": []}, separators=(",", ":"))}
 
 
 def unsigned_source_changes(source):
