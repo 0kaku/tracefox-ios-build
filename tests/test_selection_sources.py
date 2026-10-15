@@ -43,7 +43,7 @@ class SelectionSourcesTest(unittest.TestCase):
             self.assertTrue(after, package)
             self.assertEqual((self.source / package / "BUILD").read_text(encoding="utf-8"), original)
             count += len(excluded)
-        self.assertEqual(count, 7)
+        self.assertEqual(count, 17)
 
     def test_normal_selection_panel_is_retained(self):
         package = next(iter(ORPHAN_SOURCES))

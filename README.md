@@ -46,11 +46,19 @@ inputs to each Metal compile action. DustEffect shaders include `loki_header.met
 without that dependency declaration the header is absent inside Bazel's compile sandbox.
 Sandboxing stays enabled, shader code and application behavior stay unchanged.
 
-The pinned DarkGram sync client references nine SGSimpleSettings properties absent
-from its published source. A clearly named compile-test compatibility extension supplies
-the expected types. Upstream sync is forced off with no endpoint or token; only harmless
-local diagnostic state is persisted. This does not implement working synchronization.
-The extension is removed after the test, and TraceFox integration remains separate work.
+The public DarkGram source includes incomplete, unwired additions. The baseline
+compilation test excludes 17 exact files from five reachable build targets:
+selection/composition AI helpers, unfinished settings controllers, AI runtime,
+deleted-history/reply helpers, and sync. Their top-level entry declarations have
+no references outside the DarkGram addition group in the reviewed Swiftgram,
+TelegramUI and TelegramCore source. Independent optional libraries remain in the
+checkout but are not added to the application dependency graph.
+
+No placeholder sync settings are injected in this baseline. The older compatibility
+Swift file is retained in recipe history but is not copied into the build.
+All other members of the five source globs remain unchanged; regression tests check
+this. Changes are restored after compilation. This tests the underlying client,
+not a complete or working implementation of DarkGram/TraceFox features.
 
 ## What success proves
 
@@ -70,17 +78,8 @@ python ci/unsigned_build.py --source D:/TraceFoxBuild/tracefox-darkgram-ios --ou
 The second command validates the upstream commit, toolchain versions and required files.
 It does not compile Swift. Building requires the macOS runner.
 
-## Selection-panel source fix
 
-The pinned source also places an unused DarkgramAISelectionActions.swift file in
-ChatMessageSelectionInputPanelNode. Its imports are absent from that target's
-dependencies, and its only entry function has no caller in the panel sources.
-The compilation test excludes that one orphan file from the panel source glob.
-The normal selection panel remains included; AI features are not implemented by
-this fix. The upstream BUILD file is restored after the attempt.
-
-The same audit identified seven unused AI/VoiceLab UI and runtime files across
-four targets. Twenty entry functions have no references outside that excluded
-group in Swiftgram or TelegramUI sources. All seven are excluded by exact path
-in this compilation test; all other source glob members remain unchanged.
-This is not a port or a working implementation of those optional features.
+The pinned-source audit checked 40 top-level entry symbols from the 17 excluded
+files against 3,851 retained Swift files across Swiftgram and submodules, with no
+outside references. The IPA verification report labels any result baseline_only
+and lists all excluded paths; it must not be presented as working DarkGram.

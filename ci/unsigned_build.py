@@ -73,15 +73,21 @@ ORPHAN_SOURCES = {
         "Sources/DarkgramAIComposeRuntime.swift"],
     "Swiftgram/SGSettingsUI": [
         "Sources/DarkgramAISettingsController.swift", "Sources/DarkgramAIAPIKeysController.swift",
-        "Sources/DarkgramVoiceLabSettingsController.swift"],
+        "Sources/DarkgramVoiceLabSettingsController.swift",
+        "Sources/DarkgramAboutController.swift", "Sources/DarkgramArchiveMobileDataExceptionsController.swift",
+        "Sources/DarkgramDeletedMessagesBrowser.swift", "Sources/DarkgramDesign.swift",
+        "Sources/DarkgramEncryptionSettingsController.swift", "Sources/DarkgramGhostReadExceptionsController.swift"],
     "submodules/TelegramUI": [
-        "Sources/Chat/DarkgramAIRuntime.swift", "Sources/Chat/DarkgramAIMessageActions.swift"],
+        "Sources/Chat/DarkgramAIRuntime.swift", "Sources/Chat/DarkgramAIMessageActions.swift",
+        "Sources/DarkgramDialogDeletedHistoryScreen.swift", "Sources/Chat/DarkgramReplySubject.swift"],
+    "submodules/TelegramCore": [
+        "Sources/Swiftgram/DarkgramSync.swift", "Sources/Swiftgram/DarkgramReplyQuote.swift"],
 }
 
 
 def orphan_source_changes(source):
     changes = {}
-    pattern = re.compile(r'(srcs = glob\(\[\s*"Sources/\*\*/\*\.swift",\s*\])(\))')
+    pattern = re.compile(r'(glob\(\[\s*"Sources/\*\*/\*\.swift",\s*\])(\))')
     for package, excluded in ORPHAN_SOURCES.items():
         path = source / package / "BUILD"
         original = path.read_text(encoding="utf-8")
@@ -114,13 +120,8 @@ def unsigned_source_changes(source):
     # Shader sources can include other .metal files (loki_header.metal). Bazel
     # must expose them inside the compile sandbox, not just the current source.
     patched_metal = metal.replace(metal_input, "            inputs = metal_files + hdrs,")
-    compatibility = source / "Swiftgram/SGSimpleSettings/Sources/TraceFoxCompileSyncCompatibility.swift"
-    if compatibility.exists():
-        raise RuntimeError("Upstream already defines the compile-test compatibility file")
-    compatibility_text = (Path(__file__).parent / "TraceFoxCompileSyncCompatibility.swift").read_text(encoding="utf-8")
     changes = {build_file: (original, original.replace(watch, '    watch_application = None, # build-test only')),
-               rules_file: (rules, patched_rules), metal_file: (metal, patched_metal),
-               compatibility: (None, compatibility_text)}
+               rules_file: (rules, patched_rules), metal_file: (metal, patched_metal)}
     changes.update(orphan_source_changes(source))
     return changes
 
@@ -156,7 +157,8 @@ def compile_app(source, output, build_number):
         target = output / "TraceFox-iOS-build-test-unsigned.ipa"
         shutil.copyfile(ipa, target)
         report.update(source_commit=COMMIT, build_number=build_number, login_enabled=False,
-                      tracefox_bot_integrated=False, size=target.stat().st_size)
+                      tracefox_bot_integrated=False, baseline_only=True, darkgram_features_integrated=False,
+                      excluded_source_files=sum(ORPHAN_SOURCES.values(), []), size=target.stat().st_size)
         digest = hashlib.sha256()
         with target.open("rb") as stream:
             for chunk in iter(lambda: stream.read(1024 * 1024), b""):
