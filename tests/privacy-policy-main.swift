@@ -12,7 +12,7 @@ import Foundation
         let foreign = try second.readEnabled(); precondition(enabled && !foreign)
         for method in ["messages.readHistory", "channels.readHistory", "messages.readEncryptedHistory",
                        "messages.readMessageContents", "channels.readMessageContents", "messages.readMentions",
-                       "messages.readReactions", "messages.readDiscussion", "messages.setTyping",
+                       "messages.readReactions", "messages.readDiscussion", "messages.readSavedHistory", "messages.setTyping",
                        "messages.setEncryptedTyping", "stories.readStories"] {
             precondition(TraceFoxPrivacyPolicy.decision(enabled: true, function: method) == .suppress)
             precondition(TraceFoxPrivacyPolicy.decision(enabled: false, function: method) == .forward)
@@ -34,7 +34,9 @@ import Foundation
         try TraceFoxPrivacyRuntime.preferences(network: networkA).setEnabled(true)
         precondition(TraceFoxPrivacyRuntime.decision(network: networkA, function: "account.updateStatus") == .forceOffline)
         precondition(TraceFoxPrivacyRuntime.decision(network: networkA, function: "messages.setTyping") == .suppress)
+        precondition(TraceFoxPrivacyRuntime.decision(mediaBoxPath: folder.appendingPathComponent("network-a/postbox/media").path, function: "messages.readHistory") == .suppress)
         precondition(TraceFoxPrivacyRuntime.decision(network: networkB, function: "messages.setTyping") == .forward)
+        precondition(TraceFoxPrivacyRuntime.decision(mediaBoxPath: folder.appendingPathComponent("network-b/postbox/media").path, function: "messages.readHistory") == .forward)
         try TraceFoxPrivacyRuntime.preferences(network: networkA).setEnabled(false)
         precondition(TraceFoxPrivacyRuntime.decision(network: networkA, function: "messages.setTyping") == .forward)
         try Data("corrupt".utf8).write(to: folder.appendingPathComponent("network-a/tracefox-privacy.json"))

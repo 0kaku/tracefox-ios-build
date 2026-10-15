@@ -9,7 +9,7 @@ public enum TraceFoxPrivacyPolicy {
         "messages.readHistory", "channels.readHistory", "messages.readEncryptedHistory",
         "messages.readMessageContents", "channels.readMessageContents",
         "messages.readMentions", "channels.readMentions", "messages.readReactions",
-        "messages.readDiscussion", "stories.readStories", "stories.incrementStoryViews"
+        "messages.readDiscussion", "messages.readSavedHistory", "stories.readStories", "stories.incrementStoryViews"
     ]
 
     public static func decision(enabled: Bool, function: String,
