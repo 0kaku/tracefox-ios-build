@@ -1,0 +1,17 @@
+name: TraceFox local archive storage tests
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  storage-tests:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Compile and test independent archive storage
+        run: |
+          swiftc ci/TraceFoxArchiveStore.swift tests/archive-store-main.swift -o "$RUNNER_TEMP/archive-store-test"
+          "$RUNNER_TEMP/archive-store-test"
