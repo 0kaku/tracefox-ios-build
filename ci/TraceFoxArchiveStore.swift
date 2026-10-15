@@ -39,7 +39,7 @@ public final class TraceFoxArchiveStore {
         values.isExcludedFromBackup = true
         try protectedRoot.setResourceValues(values)
         #if os(iOS)
-        try manager.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], atPath: self.root.path)
+        try manager.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: self.root.path)
         #endif
     }
 

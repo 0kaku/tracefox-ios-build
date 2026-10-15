@@ -47,7 +47,7 @@ public final class TraceFoxPrivacyPreferences {
         #else
         try data.write(to: path, options: .atomic)
         #endif
-        try FileManager.default.setAttributes([.posixPermissions: 0o600], atPath: path.path)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: path.path)
         var privatePath = path
         var values = URLResourceValues(); values.isExcludedFromBackup = true
         try privatePath.setResourceValues(values)
