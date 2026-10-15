@@ -29,9 +29,11 @@ public final class TraceFoxArchiveStore {
     private let manager = FileManager.default
     private let lock = NSRecursiveLock()
     private let maxFile: Int64 = 64 * 1024 * 1024
-    private let maxTotal: Int64 = 1024 * 1024 * 1024
+    private let maxTotal: Int64
 
-    public init(root: URL) throws {
+    public init(root: URL, maxTotalBytes: Int64 = 1024 * 1024 * 1024) throws {
+        guard maxTotalBytes > 0 else { throw CocoaError(.fileWriteOutOfSpace) }
+        self.maxTotal = maxTotalBytes
         self.root = root.standardizedFileURL.resolvingSymlinksInPath()
         try manager.createDirectory(at: self.root, withIntermediateDirectories: true, attributes: nil)
         var protectedRoot = self.root
@@ -41,6 +43,14 @@ public final class TraceFoxArchiveStore {
         #if os(iOS)
         try manager.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: self.root.path)
         #endif
+    }
+
+    private func usedBytes(excluding name: String? = nil) throws -> Int64 {
+        var used: Int64 = 0
+        for item in try manager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) where item.lastPathComponent != name {
+            used += ((try manager.attributesOfItem(atPath: item.path))[.size] as? NSNumber)?.int64Value ?? 0
+        }
+        return used
     }
 
     private func file(_ name: String) throws -> URL {
@@ -62,10 +72,7 @@ public final class TraceFoxArchiveStore {
         let size = (attributes[.size] as? NSNumber)?.int64Value ?? 0
         guard attributes[.type] as? FileAttributeType == .typeRegular,
               size > 0, size <= maxFile else { throw CocoaError(.fileReadTooLarge) }
-        var used: Int64 = 0
-        for item in try manager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) {
-            used += ((try manager.attributesOfItem(atPath: item.path))[.size] as? NSNumber)?.int64Value ?? 0
-        }
+        let used = try usedBytes()
         guard used + size <= maxTotal else { throw CocoaError(.fileWriteOutOfSpace) }
         let proposed = fileExtension.lowercased()
         let ext = proposed.range(of: "^[a-z0-9]{1,8}$", options: .regularExpression) != nil ? proposed : "bin"
@@ -84,7 +91,9 @@ public final class TraceFoxArchiveStore {
         }
         let data = try JSONEncoder().encode(record)
         guard data.count <= 1024 * 1024 else { throw CocoaError(.fileWriteInapplicableStringEncoding) }
-        try data.write(to: file(record.key + ".json"), options: .atomic)
+        let name = record.key + ".json"
+        guard try usedBytes(excluding: name) + Int64(data.count) <= maxTotal else { throw CocoaError(.fileWriteOutOfSpace) }
+        try data.write(to: file(name), options: .atomic)
     }
 
     public func records(limit: Int = 100) throws -> [TraceFoxArchiveRecord] {

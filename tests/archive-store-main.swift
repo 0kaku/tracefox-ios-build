@@ -57,7 +57,19 @@ import Foundation
             _ = try first.mediaURL(name: "escape.media")
             fatalError("Symlink escape accepted")
         } catch {}
-        print("PASS: independent media after cache deletion, persistence, signed IDs, owner isolation and traversal rejection")
+        let quota = try TraceFoxArchiveStore(root: folder.appendingPathComponent("quota"), maxTotalBytes: 1200)
+        let small = TraceFoxArchiveRecord(peer: 1, namespace: 0, message: 1, timestamp: 1,
+            text: String(repeating: "x", count: 600), deleted: false, files: [])
+        try quota.save(small)
+        try quota.save(small) // Replacing the same record must not count it twice.
+        do {
+            try quota.save(TraceFoxArchiveRecord(peer: 1, namespace: 0, message: 2, timestamp: 2,
+                text: String(repeating: "y", count: 600), deleted: false, files: []))
+            fatalError("Text-only records bypassed archive quota")
+        } catch {}
+        let afterQuota = try quota.records()
+        precondition(afterQuota.count == 1 && afterQuota[0].text == small.text)
+        print("PASS: independent media, persistence, signed IDs, owner isolation, path guards and text-record quota")
     }
 
     static func tryData(_ url: URL) -> Data { return (try? Data(contentsOf: url)) ?? Data() }
