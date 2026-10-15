@@ -1,0 +1,70 @@
+import Foundation
+import UIKit
+import Display
+import SwiftSignalKit
+import TelegramCore
+import Postbox
+import AccountContext
+import TelegramPresentationData
+import ItemListUI
+import SGItemListUI
+
+private enum TraceFoxArchiveSection: Int32, SGItemListSection { case messages }
+private typealias ArchiveEntry = SGItemListUIEntry<TraceFoxArchiveSection, Int, Int, Int, Int, Int>
+
+public func traceFoxArchiveController(context: AccountContext) -> ViewController {
+    let recordsPromise = Promise<[TraceFoxArchiveRecord]>()
+    var currentRecords: [TraceFoxArchiveRecord] = []
+    var shareImpl: ((TraceFoxArchiveRecord) -> Void)?
+    let arguments = SGItemListArguments<Int, Int, Int, Int, Int>(context: context, action: { index in
+        guard currentRecords.indices.contains(index) else { return }
+        shareImpl?(currentRecords[index])
+    })
+    DispatchQueue(label: "tracefox.archive.browser").async {
+        let records = (try? TraceFoxLocalArchive.store(mediaBox: context.account.postbox.mediaBox).records()) ?? []
+        recordsPromise.set(.single(records))
+    }
+    let signal = combineLatest(context.sharedContext.presentationData, recordsPromise.get())
+    |> deliverOnMainQueue
+    |> map { presentationData, records -> (ItemListControllerState, (ItemListNodeState, Any)) in
+        currentRecords = records
+        var entries: [ArchiveEntry] = [
+            .header(id: 0, section: .messages, text: "Локальний архів TraceFox", badge: nil),
+            .notice(id: 1, section: .messages, text: "Копії доступні лише на цьому пристрої. Показано до 100 останніх записів. Файли зберігаються лише коли були завантажені до видалення; ліміти: 64 MiB на файл, 1 GiB на архів.")
+        ]
+        if records.isEmpty {
+            entries.append(.notice(id: 2, section: .messages, text: "Збережених копій поки немає."))
+        }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short; formatter.timeStyle = .short
+        for (index, record) in records.enumerated() {
+            let title = formatter.string(from: Date(timeIntervalSince1970: TimeInterval(record.timestamp)))
+            entries.append(.notice(id: 3 + index * 2, section: .messages,
+                text: title + " · Чат \(record.peer)\n" + String(record.text.prefix(3000)) + "\nФайлів: \(record.files.count)"))
+            entries.append(.action(id: 4 + index * 2, section: .messages, actionType: index,
+                text: "Відкрити / поділитися копією", kind: .generic))
+        }
+        let state = ItemListControllerState(presentationData: ItemListPresentationData(presentationData),
+            title: .text("Архів TraceFox"), leftNavigationButton: nil, rightNavigationButton: nil,
+            backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
+        let list = ItemListNodeState(presentationData: ItemListPresentationData(presentationData),
+            entries: entries, style: .blocks, ensureVisibleItemTag: nil, initialScrollToItem: nil)
+        return (state, (list, arguments))
+    }
+    let controller = ItemListController(context: context, state: signal)
+    shareImpl = { [weak controller] record in
+        guard let controller = controller else { return }
+        var items: [Any] = []
+        if !record.text.isEmpty { items.append(record.text) }
+        if let store = try? TraceFoxLocalArchive.store(mediaBox: context.account.postbox.mediaBox) {
+            for name in record.files { if let url = try? store.mediaURL(name: name) { items.append(url) } }
+        }
+        if items.isEmpty { items.append("Медіа не було доступне для локального збереження.") }
+        let activity = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        activity.popoverPresentationController?.sourceView = controller.view
+        activity.popoverPresentationController?.sourceRect = CGRect(x: controller.view.bounds.midX,
+            y: controller.view.bounds.midY, width: 1, height: 1)
+        controller.present(activity, animated: true)
+    }
+    return controller
+}

@@ -2,6 +2,7 @@
 import json
 import os
 import re
+from pathlib import Path
 from urllib.parse import urlparse
 
 
@@ -39,19 +40,22 @@ def integration_changes(source):
     replacements = {
         'import SGAPIToken': 'import SGAPIToken\nimport SGConfig',
         'private enum SGDisclosureLink: String {':
-            'private enum SGDisclosureLink: String {\n    case tracefoxBot\n    case tracefoxArchive',
+            'private enum SGDisclosureLink: String {\n    case tracefoxBot\n    case tracefoxArchive\n    case tracefoxLocalArchive',
         '    return filterSGItemListUIEntrires(entries: entries, by: state.searchQuery)':
             '    entries.append(.header(id: id.count, section: .other, text: "TraceFox", badge: nil))\n'
             '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxBot, text: "Бот TraceFox"))\n'
             '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxArchive, text: "Хмарний архів TraceFox"))\n'
-            '    entries.append(.notice(id: id.count, section: .other, text: "Хмарний архів відкривається через нашого бота. Локальне збереження медіа та режим привида для iPhone ще розробляються."))\n'
+            '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxLocalArchive, text: "Локальний архів TraceFox"))\n'
+            '    entries.append(.notice(id: id.count, section: .other, text: "Локальний архів містить копії повідомлень і доступних файлів, збережені перед видаленням. Режим привида ще розробляється."))\n'
             '    return filterSGItemListUIEntrires(entries: entries, by: state.searchQuery)',
         '    }, openDisclosureLink: { link in\n        switch (link) {':
             '    }, openDisclosureLink: { link in\n        switch (link) {\n'
             '            case .tracefoxBot:\n'
             '                context.sharedContext.applicationBindings.openUrl("https://t.me/" + SG_CONFIG.botUsername)\n'
             '            case .tracefoxArchive:\n'
-            '                context.sharedContext.applicationBindings.openUrl("https://t.me/" + SG_CONFIG.botUsername + "?startapp=archive")',
+            '                context.sharedContext.applicationBindings.openUrl("https://t.me/" + SG_CONFIG.botUsername + "?startapp=archive")\n'
+            '            case .tracefoxLocalArchive:\n'
+            '                pushControllerImpl?(traceFoxArchiveController(context: context))',
         'title: .text("Swiftgram")': 'title: .text("TraceFox")',
     }
     modified = original
@@ -59,4 +63,23 @@ def integration_changes(source):
         if modified.count(old) != 1:
             raise RuntimeError('TraceFox settings integration anchor changed')
         modified = modified.replace(old, new)
-    return {path: (original, modified)}
+    changes = {path: (original, modified)}
+    recipe = Path(__file__).resolve().parent
+    overlays = {
+        'TraceFoxArchiveStore.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxArchiveStore.swift',
+        'TraceFoxLocalArchive.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxLocalArchive.swift',
+        'TraceFoxArchiveController.swift': 'Swiftgram/SGSettingsUI/Sources/TraceFoxArchiveController.swift',
+    }
+    for name, target in overlays.items():
+        target_path = source / target
+        if target_path.exists():
+            raise RuntimeError('Unexpected existing TraceFox overlay: ' + target)
+        changes[target_path] = (None, (recipe / name).read_text(encoding='utf-8'))
+    deletion = source / 'submodules/TelegramCore/Sources/TelegramEngine/Messages/DeleteMessages.swift'
+    original = deletion.read_text(encoding='utf-8')
+    signature = 'public func _internal_deleteMessages(transaction: Transaction, mediaBox: MediaBox, ids: [MessageId], deleteMedia: Bool = true, manualAddMessageThreadStatsDifference: ((MessageThreadKey, Int, Int) -> Void)? = nil) {\n'
+    if original.count(signature) != 1:
+        raise RuntimeError('Native delete-messages entry point changed')
+    changes[deletion] = (original, original.replace(signature, signature +
+        '    TraceFoxLocalArchive.captureDeleted(transaction: transaction, mediaBox: mediaBox, ids: ids)\n'))
+    return changes

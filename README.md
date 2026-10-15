@@ -110,3 +110,27 @@ webrtc_objc. It does not change compiler flags, public module headers, source
 implementations, libraries, or sandboxing. The SDK include graph was inspected
 across 673 files; remaining undeclared headers belong to inactive Windows/Abseil
 branches for this iPhone build. The upstream BUILD file is restored afterward.
+
+## Local archive storage work in progress
+
+Foundation-only `ci/TraceFoxArchiveStore.swift` and a standalone macOS workflow now
+cover persistent text records, negative message IDs, account-specific roots and
+retention of completed media before native cache unlink. The storage layer uses
+hard links with a copy fallback and limits media to 64 MiB/file and 1 GiB/root.
+It is not yet wired into Telegram deletion/edit hooks or a native browser.
+No secret-media decryption, automatic downloads or cloud synchronization is
+provided by this storage layer. Standalone macOS tests are run independently of
+the ongoing iPhone app build; see ios-ci-status.json for current results.
+
+## Native local archive integration pending compilation
+
+Login builds now overlay the Foundation store into TelegramCore, retain completed
+local media and text immediately before `_internal_deleteMessages` removes native
+records or secret cache files, and add a native settings archive browser with a
+user-invoked share sheet. Duplicate deletion events reuse existing records.
+Capture is limited to callers of that deletion helper: bulk history removal,
+cloud TTL descriptor expiry, edits and message arrival are not covered yet.
+The browser shows up to 100 records with at most 3,000 visible text characters
+per row; sharing uses the full saved text and available retained files.
+Private archive roots are excluded from system backup and use iOS file protection.
+This code still needs full iPhone build and device verification.

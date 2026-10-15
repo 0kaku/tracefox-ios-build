@@ -45,6 +45,11 @@ jobs:
           python3 ci/unsigned_build.py --source source --output artifacts --preflight-only 2>&1 | tee artifacts/preflight.log
           echo 'DEVELOPER_DIR=/Applications/Xcode_26.2.app/Contents/Developer' >> "$GITHUB_ENV"
 
+      - name: Test independent local archive storage
+        run: |
+          swiftc ci/TraceFoxArchiveStore.swift tests/archive-store-main.swift -o "$RUNNER_TEMP/archive-store-test"
+          "$RUNNER_TEMP/archive-store-test"
+
       - name: Compile unsigned iPhone application
         env:
           BUILD_NUMBER: ${{ github.run_number }}
@@ -58,6 +63,7 @@ jobs:
           python3 -u ci/unsigned_build.py --source source --output artifacts 2>&1 | tee artifacts/build.log
 
       - name: Remove credentials from diagnostic files
+        id: sanitize
         if: always()
         env:
           TRACEFOX_API_ID: ${{ secrets.TRACEFOX_API_ID }}
@@ -76,7 +82,7 @@ jobs:
           PY
 
       - name: Upload diagnostic logs
-        if: always()
+        if: always() && steps.sanitize.outcome == 'success'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: ios-build-diagnostics-${{ github.run_number }}

@@ -30,6 +30,13 @@ public final class TraceFoxArchiveStore {
     public init(root: URL) throws {
         self.root = root.standardizedFileURL.resolvingSymlinksInPath()
         try manager.createDirectory(at: self.root, withIntermediateDirectories: true, attributes: nil)
+        var protectedRoot = self.root
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try protectedRoot.setResourceValues(values)
+        #if os(iOS)
+        try manager.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], atPath: self.root.path)
+        #endif
     }
 
     private func file(_ name: String) throws -> URL {
@@ -89,5 +96,21 @@ public final class TraceFoxArchiveStore {
             if $0.timestamp != $1.timestamp { return $0.timestamp > $1.timestamp }
             return $0.key > $1.key
         }.prefix(max(0, min(limit, 100))))
+    }
+
+    public func record(peer: Int64, namespace: Int32, message: Int32) throws -> TraceFoxArchiveRecord? {
+        lock.lock(); defer { lock.unlock() }
+        let path = try file("\(peer)_\(namespace)_\(message).json")
+        guard manager.fileExists(atPath: path.path) else { return nil }
+        return try JSONDecoder().decode(TraceFoxArchiveRecord.self, from: Data(contentsOf: path))
+    }
+
+    public func mediaURL(name: String) throws -> URL {
+        lock.lock(); defer { lock.unlock() }
+        let value = try file(name)
+        guard manager.fileExists(atPath: value.path), value.pathExtension == "media" else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        return value
     }
 }

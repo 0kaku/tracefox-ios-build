@@ -180,7 +180,9 @@ def compile_app(source, output, build_number):
                       tracefox_bot_integrated=False, baseline_only=True, darkgram_features_integrated=False,
                       excluded_source_files=sum(ORPHAN_SOURCES.values(), []), size=target.stat().st_size)
         report.update(tracefox_settings_integrated=login_enabled(), cloud_archive_bot_link=login_enabled(),
-                      device_tested=False, signing_required=True, local_media_archive=False, ghost_mode=False)
+                      device_tested=False, signing_required=True, local_media_archive=login_enabled(), ghost_mode=False,
+                      local_archive_scope='explicit-message-deletion helper only; completed local media',
+                      edit_history=False, temporary_media_expiry_hooks=False, local_archive_browser=login_enabled())
         digest = hashlib.sha256()
         with target.open("rb") as stream:
             for chunk in iter(lambda: stream.read(1024 * 1024), b""):

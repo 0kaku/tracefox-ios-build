@@ -42,6 +42,18 @@ class TraceFoxLoginTest(unittest.TestCase):
         self.assertIn('case .tracefoxArchive:', modified)
         self.assertIn('https://t.me/', modified)
         self.assertIn('"//Swiftgram/SGConfig:SGConfig"', changes[source/'Swiftgram/SGSettingsUI/BUILD'][1])
+        deletion = source / 'submodules/TelegramCore/Sources/TelegramEngine/Messages/DeleteMessages.swift'
+        before, after = changes[deletion]
+        self.assertIn('transaction.deleteMessages(ids', after)
+        self.assertLess(after.index('TraceFoxLocalArchive.captureDeleted'), after.index('mediaBox.removeCachedResources'))
+        self.assertEqual(after.replace('    TraceFoxLocalArchive.captureDeleted(transaction: transaction, mediaBox: mediaBox, ids: ids)\n', ''), before)
+        self.assertIn('pushControllerImpl?(traceFoxArchiveController(context: context))', modified)
+        for target in ['submodules/TelegramCore/Sources/Swiftgram/TraceFoxArchiveStore.swift',
+                       'submodules/TelegramCore/Sources/Swiftgram/TraceFoxLocalArchive.swift',
+                       'Swiftgram/SGSettingsUI/Sources/TraceFoxArchiveController.swift']:
+            original, added = changes[source/target]
+            self.assertIsNone(original)
+            self.assertTrue(added)
 
 
 if __name__ == '__main__': unittest.main()
