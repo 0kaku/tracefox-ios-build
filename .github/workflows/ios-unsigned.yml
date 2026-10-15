@@ -2,6 +2,12 @@ name: iOS unsigned build test
 
 on:
   workflow_dispatch:
+    inputs:
+      enable_login:
+        description: Build with TraceFox login credentials and settings
+        type: boolean
+        required: true
+        default: false
 
 permissions:
   contents: read
@@ -42,9 +48,32 @@ jobs:
       - name: Compile unsigned iPhone application
         env:
           BUILD_NUMBER: ${{ github.run_number }}
+          TRACEFOX_ENABLE_LOGIN: ${{ inputs.enable_login && '1' || '0' }}
+          TRACEFOX_API_ID: ${{ secrets.TRACEFOX_API_ID }}
+          TRACEFOX_API_HASH: ${{ secrets.TRACEFOX_API_HASH }}
+          TRACEFOX_SERVER: ${{ vars.TRACEFOX_SERVER }}
+          TRACEFOX_BOT: ${{ vars.TRACEFOX_BOT }}
         run: |
           set -euo pipefail
           python3 -u ci/unsigned_build.py --source source --output artifacts 2>&1 | tee artifacts/build.log
+
+      - name: Remove credentials from diagnostic files
+        if: always()
+        env:
+          TRACEFOX_API_ID: ${{ secrets.TRACEFOX_API_ID }}
+          TRACEFOX_API_HASH: ${{ secrets.TRACEFOX_API_HASH }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          for path in Path('artifacts').glob('*.log'):
+              value = path.read_text(errors='replace')
+              for key in ('TRACEFOX_API_ID', 'TRACEFOX_API_HASH'):
+                  secret = os.environ.get(key)
+                  if secret:
+                      value = value.replace(secret, '[redacted]')
+              path.write_text(value)
+          PY
 
       - name: Upload diagnostic logs
         if: always()

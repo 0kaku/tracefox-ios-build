@@ -1,5 +1,22 @@
 # TraceFox iOS: unsigned upstream build test
 
+## TraceFox login build (2026-10-16)
+
+Run the same workflow with `enable_login=true` for validated own Telegram app
+credentials from `TRACEFOX_API_ID` and `TRACEFOX_API_HASH` Actions secrets.
+`TRACEFOX_SERVER` and `TRACEFOX_BOT` repository variables configure the HTTPS
+origin and bot links. Missing/invalid values fail the build; placeholders are
+never substituted for a requested login build. Diagnostic logs are scrubbed
+before upload. The default remains the original baseline compile test.
+
+The login build uses bundle `one.tracefox.telegram`, URL scheme `tracefox`,
+and adds TraceFox bot and cloud-archive links to the native settings screen.
+This is an initial integration, not automatic account pairing or a native local
+archive. Local deleted/temporary media preservation and ghost mode are not yet
+implemented. An unsigned IPA still requires signing before device installation;
+credentials being configured does not verify successful login on an iPhone.
+The report records these capabilities and limits separately.
+
 This repository tests whether the public DarkGram source compiles on a GitHub-hosted Mac.
 It does **not** contain a working TraceFox iOS integration. No Telegram account can log into
 the test artifact: API credentials are deliberate placeholders. Bot integration, branding,

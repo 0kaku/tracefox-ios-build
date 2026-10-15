@@ -13,6 +13,7 @@ import sys
 from types import SimpleNamespace
 
 from verify_ipa import verify_ipa
+from tracefox_configuration import login_configuration, login_enabled, integration_changes
 
 COMMIT = "e45952ec5f30338dc83989e5798c9c683298794c"
 BUNDLE_ID = "one.tracefox.ios.buildtest"
@@ -58,12 +59,12 @@ def preflight(source, output):
 def configuration():
     # Deliberate compile-only placeholders. This artifact cannot log into Telegram.
     # No backend secrets, Telegram session keys or Apple credentials are read.
-    return {"bundle_id": BUNDLE_ID, "api_id": "1", "api_hash": "0" * 32,
+    return login_configuration({"bundle_id": BUNDLE_ID, "api_id": "1", "api_hash": "0" * 32,
             "team_id": "0000000000", "app_center_id": "0", "is_internal_build": "true",
             "is_appstore_build": "false", "appstore_id": "0", "app_specific_url_scheme": "tracefoxbuildtest",
             "premium_iap_product_id": "", "enable_siri": False, "enable_icloud": False,
             "sg_config": json.dumps({"api_url": "https://example.invalid", "webapp_url": "https://example.invalid",
-                                     "bot_username": "tracefox_build_test", "iaps": []}, separators=(",", ":"))}
+                                     "bot_username": "tracefox_build_test", "iaps": []}, separators=(",", ":"))})
 
 
 ORPHAN_SOURCES = {
@@ -134,6 +135,14 @@ def unsigned_source_changes(source):
                rules_file: (rules, patched_rules), metal_file: (metal, patched_metal)}
     changes.update(orphan_source_changes(source))
     changes.update(webrtc_source_changes(source))
+    changes.update(integration_changes(source))
+    if login_enabled():
+        settings_build = source / 'Swiftgram/SGSettingsUI/BUILD'
+        original, modified = changes[settings_build]
+        dependency = '        "//Swiftgram/SGItemListUI:SGItemListUI",'
+        if modified.count(dependency) != 1:
+            raise RuntimeError('TraceFox settings dependency anchor changed')
+        changes[settings_build] = (original, modified.replace(dependency, dependency + '\n        "//Swiftgram/SGConfig:SGConfig",'))
     return changes
 
 
@@ -164,12 +173,14 @@ def compile_app(source, output, build_number):
         command.common_build_args += ["--jobs=2", "--local_ram_resources=4096"]
         command.invoke_build()
         ipa = source / "bazel-bin/Telegram/Swiftgram.ipa"
-        report = verify_ipa(ipa, BUNDLE_ID)
+        report = verify_ipa(ipa, configuration()['bundle_id'])
         target = output / "TraceFox-iOS-build-test-unsigned.ipa"
         shutil.copyfile(ipa, target)
-        report.update(source_commit=COMMIT, build_number=build_number, login_enabled=False,
+        report.update(source_commit=COMMIT, build_number=build_number, login_enabled=login_enabled(),
                       tracefox_bot_integrated=False, baseline_only=True, darkgram_features_integrated=False,
                       excluded_source_files=sum(ORPHAN_SOURCES.values(), []), size=target.stat().st_size)
+        report.update(tracefox_settings_integrated=login_enabled(), cloud_archive_bot_link=login_enabled(),
+                      device_tested=False, signing_required=True, local_media_archive=False, ghost_mode=False)
         digest = hashlib.sha256()
         with target.open("rb") as stream:
             for chunk in iter(lambda: stream.read(1024 * 1024), b""):

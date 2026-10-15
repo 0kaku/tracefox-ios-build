@@ -1,0 +1,62 @@
+"""Validated login configuration and small, reversible TraceFox UI integration."""
+import json
+import os
+import re
+from urllib.parse import urlparse
+
+
+def login_enabled():
+    return os.environ.get('TRACEFOX_ENABLE_LOGIN') == '1'
+
+
+def login_configuration(base):
+    if not login_enabled():
+        return base
+    api_id = os.environ.get('TRACEFOX_API_ID', '')
+    api_hash = os.environ.get('TRACEFOX_API_HASH', '')
+    server = os.environ.get('TRACEFOX_SERVER', '').rstrip('/')
+    bot = os.environ.get('TRACEFOX_BOT', '').lstrip('@')
+    origin = urlparse(server)
+    if not api_id.isdecimal() or int(api_id) <= 1 or int(api_id) > 2147483647:
+        raise ValueError('Valid TraceFox API ID is required for login builds')
+    if not re.fullmatch('[a-fA-F0-9]{32}', api_hash) or api_hash == '0' * 32:
+        raise ValueError('Valid TraceFox API hash is required for login builds')
+    if origin.scheme != 'https' or not origin.hostname or origin.username or origin.password or origin.path or origin.query or origin.fragment:
+        raise ValueError('TraceFox server must be an HTTPS origin')
+    if not re.fullmatch('[A-Za-z0-9_]{5,32}', bot) or not bot.lower().endswith('bot'):
+        raise ValueError('Valid TraceFox bot username is required')
+    return dict(base, bundle_id='one.tracefox.telegram', api_id=api_id, api_hash=api_hash,
+                app_specific_url_scheme='tracefox', sg_config=json.dumps({
+                    'api_url': server, 'webapp_url': server + '/app', 'bot_username': bot, 'iaps': []
+                }, separators=(',', ':')))
+
+
+def integration_changes(source):
+    if not login_enabled():
+        return {}
+    path = source / 'Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift'
+    original = path.read_text(encoding='utf-8')
+    replacements = {
+        'import SGAPIToken': 'import SGAPIToken\nimport SGConfig',
+        'private enum SGDisclosureLink: String {':
+            'private enum SGDisclosureLink: String {\n    case tracefoxBot\n    case tracefoxArchive',
+        '    return filterSGItemListUIEntrires(entries: entries, by: state.searchQuery)':
+            '    entries.append(.header(id: id.count, section: .other, text: "TraceFox", badge: nil))\n'
+            '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxBot, text: "Бот TraceFox"))\n'
+            '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxArchive, text: "Хмарний архів TraceFox"))\n'
+            '    entries.append(.notice(id: id.count, section: .other, text: "Хмарний архів відкривається через нашого бота. Локальне збереження медіа та режим привида для iPhone ще розробляються."))\n'
+            '    return filterSGItemListUIEntrires(entries: entries, by: state.searchQuery)',
+        '    }, openDisclosureLink: { link in\n        switch (link) {':
+            '    }, openDisclosureLink: { link in\n        switch (link) {\n'
+            '            case .tracefoxBot:\n'
+            '                context.sharedContext.applicationBindings.openUrl("https://t.me/" + SG_CONFIG.botUsername)\n'
+            '            case .tracefoxArchive:\n'
+            '                context.sharedContext.applicationBindings.openUrl("https://t.me/" + SG_CONFIG.botUsername + "?startapp=archive")',
+        'title: .text("Swiftgram")': 'title: .text("TraceFox")',
+    }
+    modified = original
+    for old, new in replacements.items():
+        if modified.count(old) != 1:
+            raise RuntimeError('TraceFox settings integration anchor changed')
+        modified = modified.replace(old, new)
+    return {path: (original, modified)}
