@@ -20,3 +20,7 @@ jobs:
           swiftc -emit-module -emit-library -module-name Postbox tests/archive-fixtures/Postbox.swift -emit-module-path "$RUNNER_TEMP/Postbox.swiftmodule" -o "$RUNNER_TEMP/libPostbox.dylib"
           swiftc -I "$RUNNER_TEMP" -L "$RUNNER_TEMP" -lPostbox ci/TraceFoxArchiveStore.swift ci/TraceFoxLocalArchive.swift tests/archive-fixtures/TelegramTypes.swift tests/archive-bridge-main.swift -o "$RUNNER_TEMP/archive-bridge-test"
           DYLD_LIBRARY_PATH="$RUNNER_TEMP" "$RUNNER_TEMP/archive-bridge-test"
+      - name: Test privacy policy and per-account persistence
+        run: |
+          swiftc ci/TraceFoxPrivacyPolicy.swift tests/privacy-policy-main.swift -o "$RUNNER_TEMP/privacy-policy-test"
+          "$RUNNER_TEMP/privacy-policy-test"
