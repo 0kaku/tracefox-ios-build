@@ -22,5 +22,5 @@ jobs:
           DYLD_LIBRARY_PATH="$RUNNER_TEMP" "$RUNNER_TEMP/archive-bridge-test"
       - name: Test privacy policy and per-account persistence
         run: |
-          swiftc ci/TraceFoxPrivacyPolicy.swift tests/privacy-policy-main.swift -o "$RUNNER_TEMP/privacy-policy-test"
+          swiftc ci/TraceFoxPrivacyPolicy.swift ci/TraceFoxPrivacyRuntime.swift tests/archive-fixtures/Network.swift tests/privacy-policy-main.swift -o "$RUNNER_TEMP/privacy-policy-test"
           "$RUNNER_TEMP/privacy-policy-test"

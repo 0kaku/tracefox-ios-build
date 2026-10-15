@@ -28,6 +28,18 @@ import Foundation
         let file = folder.appendingPathComponent("account-a/tracefox-privacy.json")
         try Data("invalid".utf8).write(to: file)
         do { _ = try first.readEnabled(); fatalError("Corrupt setting silently accepted") } catch {}
+        let networkA = Network(basePath: folder.appendingPathComponent("network-a").path)
+        let networkB = Network(basePath: folder.appendingPathComponent("network-b").path)
+        precondition(TraceFoxPrivacyRuntime.decision(network: networkA, function: "account.updateStatus") == .forward)
+        try TraceFoxPrivacyRuntime.preferences(network: networkA).setEnabled(true)
+        precondition(TraceFoxPrivacyRuntime.decision(network: networkA, function: "account.updateStatus") == .forceOffline)
+        precondition(TraceFoxPrivacyRuntime.decision(network: networkA, function: "messages.setTyping") == .suppress)
+        precondition(TraceFoxPrivacyRuntime.decision(network: networkB, function: "messages.setTyping") == .forward)
+        try TraceFoxPrivacyRuntime.preferences(network: networkA).setEnabled(false)
+        precondition(TraceFoxPrivacyRuntime.decision(network: networkA, function: "messages.setTyping") == .forward)
+        try Data("corrupt".utf8).write(to: folder.appendingPathComponent("network-a/tracefox-privacy.json"))
+        precondition(TraceFoxPrivacyRuntime.decision(network: networkA, function: "account.updateStatus") == .forceOffline)
+        precondition(TraceFoxPrivacyRuntime.decision(network: networkA, function: "messages.sendMessage") == .forward)
         print("PASS: pure ghost policy, disabled defaults, persistent per-account settings, read/typing/offline decisions, normal messaging/download/auth/calls unchanged; no transport integration claimed")
     }
 }
