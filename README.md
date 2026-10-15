@@ -41,6 +41,11 @@ is disabled. The recipe patches only its main application packaging branch in th
 disposable source checkout, skipping profile embedding when `disable_legacy_signing`
 is enabled. Normal signed-build behavior stays intact; all patches are restored afterward.
 
+The vendored Metal compiler rule is also patched to declare sibling shader sources as
+inputs to each Metal compile action. DustEffect shaders include `loki_header.metal`;
+without that dependency declaration the header is absent inside Bazel's compile sandbox.
+Sandboxing stays enabled, shader code and application behavior stay unchanged.
+
 ## What success proves
 
 A success proves that the pinned source builds an unsigned arm64 iPhone application,

@@ -79,8 +79,16 @@ def unsigned_source_changes(source):
     patched_rules = rules.replace(profile,
         '    if platform_prerequisites.platform.is_device and "disable_legacy_signing" not in platform_prerequisites.features:\n'
         '        processor_partials.append(\n            partials.provisioning_profile_partial(', 1)
+    metal_file = source / "build-system/bazel-rules/rules_apple/apple/internal/resource_actions/metals.bzl"
+    metal = metal_file.read_text()
+    metal_input = "            inputs = [input_metal] + hdrs,"
+    if metal.count(metal_input) != 1:
+        raise RuntimeError("Metal input rule changed; review included shader dependencies")
+    # Shader sources can include other .metal files (loki_header.metal). Bazel
+    # must expose them inside the compile sandbox, not just the current source.
+    patched_metal = metal.replace(metal_input, "            inputs = metal_files + hdrs,")
     return {build_file: (original, original.replace(watch, '    watch_application = None, # build-test only')),
-            rules_file: (rules, patched_rules)}
+            rules_file: (rules, patched_rules), metal_file: (metal, patched_metal)}
 
 
 def compile_app(source, output, build_number):

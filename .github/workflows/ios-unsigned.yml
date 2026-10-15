@@ -19,12 +19,12 @@ jobs:
         shell: bash
     steps:
       - name: Checkout build recipe
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
 
       - name: Checkout pinned DarkGram source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           repository: nepcukk/Darkgram
           ref: e45952ec5f30338dc83989e5798c9c683298794c
@@ -48,7 +48,7 @@ jobs:
 
       - name: Upload diagnostic logs
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: ios-build-diagnostics-${{ github.run_number }}
           path: |
@@ -59,7 +59,7 @@ jobs:
 
       - name: Upload verified unsigned IPA
         if: success()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: TraceFox-iOS-build-test-unsigned-${{ github.run_number }}
           path: |
