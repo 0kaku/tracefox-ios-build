@@ -36,7 +36,9 @@ public final class TraceFoxArchiveStore {
         guard !name.isEmpty, name == (name as NSString).lastPathComponent,
               name != ".", name != ".." else { throw CocoaError(.fileReadInvalidFileName) }
         let value = root.appendingPathComponent(name).resolvingSymlinksInPath()
-        guard value.deletingLastPathComponent() == root else { throw CocoaError(.fileReadNoPermission) }
+        // Directory URLs may differ only in their trailing-slash representation.
+        // Compare canonical filesystem paths, while still rejecting symlink escapes.
+        guard value.deletingLastPathComponent().path == root.path else { throw CocoaError(.fileReadNoPermission) }
         return value
     }
 
