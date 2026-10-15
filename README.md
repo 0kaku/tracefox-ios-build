@@ -36,6 +36,11 @@ code signing are disabled using the upstream build flags. No Apple ID, certifica
 Telegram session or bot/backend secret is read. The build recipe has only read access
 to repository contents and never creates a GitHub Release or sends an IPA to users.
 
+The pinned upstream packaging rule additionally requires a profile even when signing
+is disabled. The recipe patches only its main application packaging branch in the
+disposable source checkout, skipping profile embedding when `disable_legacy_signing`
+is enabled. Normal signed-build behavior stays intact; all patches are restored afterward.
+
 ## What success proves
 
 A success proves that the pinned source builds an unsigned arm64 iPhone application,

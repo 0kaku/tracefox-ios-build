@@ -65,16 +65,30 @@ def configuration():
                                      "bot_username": "tracefox_build_test", "iaps": []})}
 
 
+def unsigned_source_changes(source):
+    build_file = source / "Telegram/BUILD"
+    rules_file = source / "build-system/bazel-rules/rules_apple/apple/internal/ios_rules.bzl"
+    original = build_file.read_text()
+    rules = rules_file.read_text()
+    watch = '    watch_application = ":TelegramWatchApp", # MARK: Swiftgram'
+    profile = "    if platform_prerequisites.platform.is_device:\n        processor_partials.append(\n            partials.provisioning_profile_partial("
+    if original.count(watch) != 1 or profile not in rules:
+        raise RuntimeError("Upstream device packaging changed; review the unsigned build patch")
+    # Only the application packaging branch is changed, and only for the explicit
+    # no-signing feature. A normal signed build still requires its original profile.
+    patched_rules = rules.replace(profile,
+        '    if platform_prerequisites.platform.is_device and "disable_legacy_signing" not in platform_prerequisites.features:\n'
+        '        processor_partials.append(\n            partials.provisioning_profile_partial(', 1)
+    return {build_file: (original, original.replace(watch, '    watch_application = None, # build-test only')),
+            rules_file: (rules, patched_rules)}
+
+
 def compile_app(source, output, build_number):
     os.chdir(source)
-    build_file = source / "Telegram/BUILD"
-    original = build_file.read_text()
-    watch = '    watch_application = ":TelegramWatchApp", # MARK: Swiftgram'
-    if original.count(watch) != 1:
-        raise RuntimeError("Watch target changed; review the unsigned build patch")
-    # Only the disposable runner checkout is changed. Avoid a second watchOS build.
-    build_file.write_text(original.replace(watch, '    watch_application = None, # build-test only'))
+    changes = unsigned_source_changes(source)
     try:
+        for file, (_, replacement) in changes.items():
+            file.write_text(replacement)
         config_path = source / "build-input/tracefox-build-test.json"
         config_path.parent.mkdir(exist_ok=True)
         config_path.write_text(json.dumps(configuration()))
@@ -108,7 +122,8 @@ def compile_app(source, output, build_number):
         (output / "ipa-verification.json").write_text(json.dumps(report, indent=2))
         print("Unsigned device build verified; this is not a signed or functional TraceFox release.", flush=True)
     finally:
-        build_file.write_text(original)
+        for file, (original, _) in changes.items():
+            file.write_text(original)
 
 
 def main():
