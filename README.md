@@ -46,6 +46,12 @@ inputs to each Metal compile action. DustEffect shaders include `loki_header.met
 without that dependency declaration the header is absent inside Bazel's compile sandbox.
 Sandboxing stays enabled, shader code and application behavior stay unchanged.
 
+The pinned DarkGram sync client references nine SGSimpleSettings properties absent
+from its published source. A clearly named compile-test compatibility extension supplies
+the expected types. Upstream sync is forced off with no endpoint or token; only harmless
+local diagnostic state is persisted. This does not implement working synchronization.
+The extension is removed after the test, and TraceFox integration remains separate work.
+
 ## What success proves
 
 A success proves that the pinned source builds an unsigned arm64 iPhone application,

@@ -87,8 +87,13 @@ def unsigned_source_changes(source):
     # Shader sources can include other .metal files (loki_header.metal). Bazel
     # must expose them inside the compile sandbox, not just the current source.
     patched_metal = metal.replace(metal_input, "            inputs = metal_files + hdrs,")
+    compatibility = source / "Swiftgram/SGSimpleSettings/Sources/TraceFoxCompileSyncCompatibility.swift"
+    if compatibility.exists():
+        raise RuntimeError("Upstream already defines the compile-test compatibility file")
+    compatibility_text = (Path(__file__).parent / "TraceFoxCompileSyncCompatibility.swift").read_text()
     return {build_file: (original, original.replace(watch, '    watch_application = None, # build-test only')),
-            rules_file: (rules, patched_rules), metal_file: (metal, patched_metal)}
+            rules_file: (rules, patched_rules), metal_file: (metal, patched_metal),
+            compatibility: (None, compatibility_text)}
 
 
 def compile_app(source, output, build_number):
@@ -131,7 +136,10 @@ def compile_app(source, output, build_number):
         print("Unsigned device build verified; this is not a signed or functional TraceFox release.", flush=True)
     finally:
         for file, (original, _) in changes.items():
-            file.write_text(original)
+            if original is None:
+                file.unlink(missing_ok=True)
+            else:
+                file.write_text(original)
 
 
 def main():
