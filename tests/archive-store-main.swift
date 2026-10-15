@@ -69,6 +69,14 @@ import Foundation
         } catch {}
         let afterQuota = try quota.records()
         precondition(afterQuota.count == 1 && afterQuota[0].text == small.text)
+        let rollbackSource = folder.appendingPathComponent("rollback-source")
+        try Data(repeating: 7, count: 100).write(to: rollbackSource)
+        let rollbackName = try quota.retain(source: rollbackSource, peer: 2, namespace: 0, message: 3)
+        quota.discardUncommitted([rollbackName, "../private.media", "1_0_1.json"])
+        do { _ = try quota.mediaURL(name: rollbackName); fatalError("Failed capture file leaked") } catch {}
+        precondition(manager.fileExists(atPath: rollbackSource.path))
+        let afterRollback = try quota.records()
+        precondition(afterRollback.count == 1 && afterRollback[0].text == small.text)
         print("PASS: independent media, persistence, signed IDs, owner isolation, path guards and text-record quota")
     }
 

@@ -81,10 +81,14 @@ public enum TraceFoxLocalArchive {
                     names.append(name)
                 }
             }
-            try? archive.save(TraceFoxArchiveRecord(peer: id.peerId.toInt64(), namespace: id.namespace,
-                message: id.id, timestamp: message.timestamp, text: message.text,
-                deleted: deleted || (previous?.deleted ?? false), files: names,
-                ttlSeconds: ttl ?? previous?.ttlSeconds, previousTexts: previous?.previousTexts))
+            do {
+                try archive.save(TraceFoxArchiveRecord(peer: id.peerId.toInt64(), namespace: id.namespace,
+                    message: id.id, timestamp: message.timestamp, text: message.text,
+                    deleted: deleted || (previous?.deleted ?? false), files: names,
+                    ttlSeconds: ttl ?? previous?.ttlSeconds, previousTexts: previous?.previousTexts))
+            } catch {
+                archive.discardUncommitted(names)
+            }
         }
     }
 }

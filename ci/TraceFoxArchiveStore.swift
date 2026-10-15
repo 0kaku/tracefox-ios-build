@@ -96,6 +96,16 @@ public final class TraceFoxArchiveStore {
         try data.write(to: file(name), options: .atomic)
     }
 
+    // Only newly retained names from a failed capture belong here. They have
+    // never been committed to a record; existing archive files are not passed.
+    func discardUncommitted(_ names: [String]) {
+        lock.lock(); defer { lock.unlock() }
+        for name in names {
+            guard let value = try? mediaURL(name: name) else { continue }
+            try? manager.removeItem(at: value)
+        }
+    }
+
     public func records(limit: Int = 100) throws -> [TraceFoxArchiveRecord] {
         lock.lock(); defer { lock.unlock() }
         var records: [TraceFoxArchiveRecord] = []
