@@ -1,0 +1,69 @@
+name: iOS unsigned build test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-unsigned-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout build recipe
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Checkout pinned DarkGram source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: nepcukk/Darkgram
+          ref: e45952ec5f30338dc83989e5798c9c683298794c
+          path: source
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify build environment and source
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          python3 ci/unsigned_build.py --source source --output artifacts --preflight-only 2>&1 | tee artifacts/preflight.log
+          echo 'DEVELOPER_DIR=/Applications/Xcode_26.2.app/Contents/Developer' >> "$GITHUB_ENV"
+
+      - name: Compile unsigned iPhone application
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          python3 -u ci/unsigned_build.py --source source --output artifacts 2>&1 | tee artifacts/build.log
+
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ios-build-diagnostics-${{ github.run_number }}
+          path: |
+            artifacts/*.log
+            artifacts/environment.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload verified unsigned IPA
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: TraceFox-iOS-build-test-unsigned-${{ github.run_number }}
+          path: |
+            artifacts/TraceFox-iOS-build-test-unsigned.ipa
+            artifacts/ipa-verification.json
+          if-no-files-found: error
+          retention-days: 7
