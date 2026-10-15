@@ -98,6 +98,16 @@ def orphan_source_changes(source):
     return changes
 
 
+def webrtc_source_changes(source):
+    path = source / "third-party/webrtc/BUILD"
+    original = path.read_text(encoding="utf-8")
+    anchor = '        "webrtc/rtc_base/system/gcd_helpers.m",\n    ],\n    copts = ['
+    if original.count(anchor) != 1:
+        raise RuntimeError("WebRTC Objective-C source rule changed; review private header inputs")
+    replacement = '        "webrtc/rtc_base/system/gcd_helpers.m",\n    ] + ["webrtc/" + path for path in webrtc_headers],\n    copts = ['
+    return {path: (original, original.replace(anchor, replacement))}
+
+
 def unsigned_source_changes(source):
     build_file = source / "Telegram/BUILD"
     rules_file = source / "build-system/bazel-rules/rules_apple/apple/internal/ios_rules.bzl"
@@ -123,6 +133,7 @@ def unsigned_source_changes(source):
     changes = {build_file: (original, original.replace(watch, '    watch_application = None, # build-test only')),
                rules_file: (rules, patched_rules), metal_file: (metal, patched_metal)}
     changes.update(orphan_source_changes(source))
+    changes.update(webrtc_source_changes(source))
     return changes
 
 

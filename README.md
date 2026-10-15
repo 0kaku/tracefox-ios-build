@@ -83,3 +83,13 @@ The pinned-source audit checked 40 top-level entry symbols from the 17 excluded
 files against 3,851 retained Swift files across Swiftgram and submodules, with no
 outside references. The IPA verification report labels any result baseline_only
 and lists all excluded paths; it must not be presented as working DarkGram.
+
+## WebRTC private compilation inputs
+
+The Objective-C WebRTC target includes C++ headers such as rtc_base/checks.h, but
+its original source list does not declare the existing webrtc_headers list.
+The build-test patch adds those 1,367 headers as private source inputs of
+webrtc_objc. It does not change compiler flags, public module headers, source
+implementations, libraries, or sandboxing. The SDK include graph was inspected
+across 673 files; remaining undeclared headers belong to inactive Windows/Abseil
+branches for this iPhone build. The upstream BUILD file is restored afterward.
