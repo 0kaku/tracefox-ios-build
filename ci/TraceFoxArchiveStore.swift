@@ -154,7 +154,7 @@ public final class TraceFoxArchiveStore {
     }
 
     public func saveTextEdit(peer: Int64, namespace: Int32, message: Int32, timestamp: Int32,
-                             previousText: String, updatedText: String, globallyUniqueId: Int64? = nil) throws {
+                             previousText: String, updatedText: String, globallyUniqueId: Int64? = nil, ttlSeconds: Int32? = nil) throws {
         lock.lock(); defer { lock.unlock() }
         guard previousText != updatedText else { return }
         let existing = try record(peer: peer, namespace: namespace, message: message)
@@ -166,7 +166,7 @@ public final class TraceFoxArchiveStore {
         }
         try save(TraceFoxArchiveRecord(peer: peer, namespace: namespace, message: message,
             timestamp: timestamp, text: updatedText, deleted: existing?.deleted ?? false,
-            files: [], ttlSeconds: existing?.ttlSeconds, previousTexts: history,
+            files: [], ttlSeconds: ttlSeconds ?? existing?.ttlSeconds, previousTexts: history,
             globallyUniqueId: globallyUniqueId ?? existing?.globallyUniqueId))
     }
 

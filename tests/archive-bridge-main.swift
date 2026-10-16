@@ -51,9 +51,11 @@ import Postbox
         let other = try TraceFoxLocalArchive.store(mediaBox: foreign).records()
         precondition(other.isEmpty)
         let editId = MessageId(peerId: PeerId(42), namespace: 0, id: 51)
-        tx.messages[editId] = Message(timestamp: 20, text: "first", media: [], attributes: [])
+        tx.messages[editId] = Message(timestamp: 20, text: "first", media: [], attributes: [AutoremoveTimeoutMessageAttribute(timeout: 60)])
         TraceFoxLocalArchive.captureTextEdit(transaction: tx, mediaBox: box, id: editId, updatedText: "second", updatedHasMedia: false)
         TraceFoxLocalArchive.captureTextEdit(transaction: tx, mediaBox: box, id: editId, updatedText: "second", updatedHasMedia: false)
+        let timedEdit = try store.record(peer: 42, namespace: 0, message: 51)!
+        precondition(timedEdit.ttlSeconds == 60)
         tx.messages[editId] = Message(timestamp: 20, text: "second", media: [], attributes: [])
         TraceFoxLocalArchive.captureTextEdit(transaction: tx, mediaBox: box, id: editId, updatedText: "third", updatedHasMedia: false)
         tx.messages[editId] = Message(timestamp: 20, text: "third", media: [], attributes: [])

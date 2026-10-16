@@ -25,6 +25,21 @@ public enum TraceFoxLocalArchive {
         capture(transaction: transaction, mediaBox: mediaBox, ids: ids, deleted: false)
     }
 
+    private static func lifetime(_ message: Message) -> Int32? {
+    var ttl: Int32?
+    for attribute in message.attributes {
+        let candidate: Int32?
+        if let value = attribute as? AutoremoveTimeoutMessageAttribute { candidate = value.timeout }
+        else if let value = attribute as? AutoclearTimeoutMessageAttribute { candidate = value.timeout }
+        else { candidate = nil }
+        if let candidate = candidate, candidate > 0 {
+            if candidate == viewOnceTimeout { ttl = candidate; break }
+            if ttl == nil { ttl = candidate }
+        }
+    }
+        return ttl
+    }
+
     // Initial edit-history support is deliberately limited to plain text messages.
     // Attachment/caption edits need resource identity and media-revision tracking.
     static func captureTextEdit(transaction: Transaction, mediaBox: MediaBox, id: MessageId,
@@ -33,7 +48,7 @@ public enum TraceFoxLocalArchive {
               let archive = try? store(mediaBox: mediaBox) else { return }
         try? archive.saveTextEdit(peer: id.peerId.toInt64(), namespace: id.namespace, message: id.id,
             timestamp: message.timestamp, previousText: message.text, updatedText: updatedText,
-            globallyUniqueId: message.globallyUniqueId)
+            globallyUniqueId: message.globallyUniqueId, ttlSeconds: lifetime(message))
     }
 
     private static func capture(transaction: Transaction, mediaBox: MediaBox, ids: [MessageId], deleted: Bool) {
@@ -51,17 +66,7 @@ public enum TraceFoxLocalArchive {
                 continue
             }
             guard let message = transaction.getMessage(id) else { continue }
-            var ttl: Int32?
-            for attribute in message.attributes {
-                let candidate: Int32?
-                if let value = attribute as? AutoremoveTimeoutMessageAttribute { candidate = value.timeout }
-                else if let value = attribute as? AutoclearTimeoutMessageAttribute { candidate = value.timeout }
-                else { candidate = nil }
-                if let candidate = candidate, candidate > 0 {
-                    if candidate == viewOnceTimeout { ttl = candidate; break }
-                    if ttl == nil { ttl = candidate }
-                }
-            }
+            let ttl = lifetime(message)
             var resources: [(MediaResource, String)] = []
             for media in message.media {
                 if let image = media as? TelegramMediaImage {
