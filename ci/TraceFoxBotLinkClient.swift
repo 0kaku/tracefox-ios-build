@@ -58,21 +58,40 @@ public final class TraceFoxBotLinkClient: TraceFoxBotClaiming, TraceFoxCloudSubm
 
     deinit { session.invalidateAndCancel(); uploadSession.invalidateAndCancel() }
 
-    // Explicit single event submission. No automatic queue or retry is started.
     @discardableResult
     public func submit(_ payload: TraceFoxCloudArchivePayload, credentials: TraceFoxBotLinkCredentials,
+                       completion: @escaping (Result<Int64, Error>) -> Void) throws -> TraceFoxBotClaimTask {
+        return try submit(.cloud(payload), credentials: credentials, completion: completion)
+    }
+    @discardableResult
+    public func upload(file: URL, payload: TraceFoxCloudArchivePayload, credentials: TraceFoxBotLinkCredentials,
+                       completion: @escaping (Result<Int64, Error>) -> Void) throws -> TraceFoxBotClaimTask {
+        return try upload(file: file, payload: .cloud(payload), credentials: credentials, completion: completion)
+    }
+
+    private func backupEndpoint(secret: Bool, resource: String) -> URL {
+        if secret {
+            return endpoint.deletingLastPathComponent().deletingLastPathComponent()
+                .appendingPathComponent("client/secret").appendingPathComponent(resource)
+        }
+        return endpoint.deletingLastPathComponent().appendingPathComponent(resource)
+    }
+
+    // Explicit single event submission. No automatic queue or retry is started.
+    @discardableResult
+    public func submit(_ payload: TraceFoxBackupPayload, credentials: TraceFoxBotLinkCredentials,
                        completion: @escaping (Result<Int64, Error>) -> Void) throws -> TraceFoxBotClaimTask {
         try payload.validate()
         guard credentials.ownerId > 0, credentials.token.utf8.count == 43,
               credentials.token.range(of: "^[A-Za-z0-9_-]{43}$", options: .regularExpression) != nil else {
             throw TraceFoxBotLinkError.invalidResponse
         }
-        var request = URLRequest(url: endpoint.deletingLastPathComponent().appendingPathComponent("messages"))
+        var request = URLRequest(url: backupEndpoint(secret: payload.secret, resource: "messages"))
         request.httpMethod = "POST"
         request.setValue("Bearer " + credentials.token, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.httpBody = try JSONEncoder().encode(payload)
+        request.httpBody = try payload.encoded()
         let task = session.dataTask(with: request) { data, response, error in
             if error != nil { completion(.failure(TraceFoxBotLinkClientError.transport)); return }
             guard let response = response as? HTTPURLResponse else { completion(.failure(TraceFoxBotLinkClientError.invalidResponse)); return }
@@ -89,7 +108,7 @@ public final class TraceFoxBotLinkClient: TraceFoxBotClaiming, TraceFoxCloudSubm
 
     // Upload a completed retained file without loading it fully into memory.
     @discardableResult
-    public func upload(file: URL, payload: TraceFoxCloudArchivePayload, credentials: TraceFoxBotLinkCredentials,
+    public func upload(file: URL, payload: TraceFoxBackupPayload, credentials: TraceFoxBotLinkCredentials,
                        completion: @escaping (Result<Int64, Error>) -> Void) throws -> TraceFoxBotClaimTask {
         try payload.validate()
         guard credentials.ownerId > 0, credentials.token.utf8.count == 43,
@@ -100,14 +119,13 @@ public final class TraceFoxBotLinkClient: TraceFoxBotClaiming, TraceFoxCloudSubm
               let size = (attributes[.size] as? NSNumber)?.int64Value, size > 0, size <= 64 * 1024 * 1024 else {
             throw TraceFoxBotLinkError.invalidResponse
         }
-        var request = URLRequest(url: endpoint.deletingLastPathComponent().appendingPathComponent("media"))
+        var request = URLRequest(url: backupEndpoint(secret: payload.secret, resource: "media"))
         request.httpMethod = "PUT"
         request.setValue("Bearer " + credentials.token, forHTTPHeaderField: "Authorization")
         let mime = ["jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "mp4": "video/mp4", "ogg": "audio/ogg", "mp3": "audio/mpeg", "pdf": "application/pdf"][file.pathExtension.lowercased()] ?? "application/octet-stream"
         request.setValue(mime, forHTTPHeaderField: "Content-Type")
         request.setValue(String(size), forHTTPHeaderField: "Content-Length")
-        request.setValue(String(payload.chat_id), forHTTPHeaderField: "X-Chat-Id")
-        request.setValue(String(payload.message_id), forHTTPHeaderField: "X-Message-Id")
+        for (name, value) in payload.identityHeaders { request.setValue(value, forHTTPHeaderField: name) }
         request.setValue(file.lastPathComponent, forHTTPHeaderField: "X-Filename")
         request.setValue("telegram_client", forHTTPHeaderField: "X-Source")
         request.setValue(payload.temporary ? "true" : "false", forHTTPHeaderField: "X-Temporary")

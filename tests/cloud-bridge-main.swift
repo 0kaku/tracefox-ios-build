@@ -17,6 +17,12 @@ import Postbox
             message: 7, timestamp: 100, text: "local only", deleted: true, files: [])
         let ignored = try TraceFoxCloudArchiveBridge.payload(record: secretRecord)
         precondition(ignored == nil)
+        let missingStable = try TraceFoxCloudArchiveBridge.backupPayload(record: secretRecord)
+        precondition(missingStable == nil)
+        let stable = TraceFoxArchiveRecord(peer: PeerId(42, namespace: 3).toInt64(), namespace: 1,
+            message: 99, timestamp: 100, text: "secret", deleted: true, files: [], globallyUniqueId: Int64.min)
+        guard case let .secretChat(secret)? = try TraceFoxCloudArchiveBridge.backupPayload(record: stable) else { fatalError("Secret copy excluded") }
+        precondition(secret.random_id == "-9223372036854775808" && secret.secret_chat_id == 42)
         for excluded in [message(namespace: 3), message(messageNamespace: 1), message(mid: -7), message(peer: 777000, namespace: 0), message(text: "/android_link synthetic-code")] {
             let value = try TraceFoxCloudArchiveBridge.payload(message: excluded, event: .message)
             precondition(value == nil)

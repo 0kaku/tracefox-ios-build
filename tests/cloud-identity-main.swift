@@ -27,6 +27,13 @@ import Foundation
         }
         do { _ = try TraceFoxCloudArchivePayload(identity: user, text: "", date: 0, event: .message); fatalError("Invalid date accepted") } catch {}
         do { _ = try TraceFoxCloudArchivePayload(identity: user, text: "", date: 100, ttlSeconds: -1, event: .message); fatalError("Invalid TTL accepted") } catch {}
+        for random in [Int64.min, Int64.max, -1, 1] {
+            let secret = try TraceFoxSecretArchivePayload(chatId: 42, randomId: random, text: "secret", date: 100, ttlSeconds: 30, event: .deleted)
+            let data = try JSONEncoder().encode(secret)
+            let decoded = try JSONDecoder().decode(TraceFoxSecretArchivePayload.self, from: data)
+            try decoded.validate(); precondition(decoded.random_id == String(random))
+        }
+        do { _ = try TraceFoxSecretArchivePayload(chatId: 42, randomId: 0, text: "", date: 100, ttlSeconds: nil, event: .message); fatalError("Zero secret ID accepted") } catch {}
         if let path = ProcessInfo.processInfo.environment["TRACEFOX_PAYLOAD_FIXTURE"] {
             let plain = try TraceFoxCloudArchivePayload(identity: user, text: "plain", date: 100, event: .message)
             let combining = try TraceFoxCloudArchivePayload(identity: group, text: String(repeating: "e\u{301}", count: 8000), date: 100, ttlSeconds: 0, event: .edited)

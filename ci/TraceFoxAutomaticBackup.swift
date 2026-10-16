@@ -145,7 +145,7 @@ public final class TraceFoxAutomaticBackup {
                 }
                 let record = batch.removeFirst()
                 if try ledger.contains(record) { continue }
-                guard let payload = try TraceFoxCloudArchiveBridge.payload(record: record) else { continue }
+                guard let payload = try TraceFoxCloudArchiveBridge.backupPayload(record: record) else { continue }
                 task = try client.submit(payload, credentials: stored) { [weak self] result in
                     self?.queue.async { [weak self] in
                         guard let self = self, !self.stopped else { return }
@@ -160,7 +160,7 @@ public final class TraceFoxAutomaticBackup {
             }
         } catch { schedule(60) }
     }
-    private func upload(_ record: TraceFoxArchiveRecord, _ payload: TraceFoxCloudArchivePayload, _ stored: TraceFoxBotLinkCredentials) {
+    private func upload(_ record: TraceFoxArchiveRecord, _ payload: TraceFoxBackupPayload, _ stored: TraceFoxBotLinkCredentials) {
         do {
             if let name = record.files.first {
                 let file = try archive.mediaURL(name: name)

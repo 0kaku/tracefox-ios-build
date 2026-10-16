@@ -2,6 +2,16 @@ import Foundation
 import Postbox
 
 public enum TraceFoxCloudArchiveBridge {
+    public static func backupPayload(record: TraceFoxArchiveRecord) throws -> TraceFoxBackupPayload? {
+        if let normal = try payload(record: record) { return .cloud(normal) }
+        let peer = PeerId(record.peer)
+        guard peer.namespace._internalGetInt32Value() == 3, record.namespace == 1,
+              let random = record.globallyUniqueId, random != 0 else { return nil }
+        let event: TraceFoxCloudArchiveEvent = record.deleted ? .deleted : ((record.previousTexts?.isEmpty == false) ? .edited : .message)
+        return .secretChat(try TraceFoxSecretArchivePayload(chatId: peer.id._internalGetInt64Value(),
+            randomId: random, text: record.text, date: Int64(record.timestamp), ttlSeconds: record.ttlSeconds, event: event))
+    }
+
     public static func payload(record: TraceFoxArchiveRecord, title: String = "Telegram") throws -> TraceFoxCloudArchivePayload? {
         let peer = PeerId(record.peer)
         let namespace = peer.namespace._internalGetInt32Value()
