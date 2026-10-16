@@ -20,7 +20,7 @@ private struct BotPairingScreenState {
 private final class BotPairingScreenModel {
     let context: AccountContext
     let ownerId: Int64
-    let store = TraceFoxBotCredentialStore()
+    let store: TraceFoxBotCredentialStore
     let state = Promise<BotPairingScreenState>()
     var current = BotPairingScreenState()
     var coordinator: TraceFoxBotPairingCoordinator?
@@ -29,6 +29,7 @@ private final class BotPairingScreenModel {
 
     init(context: AccountContext) {
         self.context = context
+        store = TraceFoxBotCredentialStore(accountRecordId: context.account.id.int64)
         ownerId = context.account.peerId.id._internalGetInt64Value()
         do {
             guard let origin = URL(string: SG_CONFIG.apiUrl) else { throw TraceFoxBotLinkError.invalidOrigin }

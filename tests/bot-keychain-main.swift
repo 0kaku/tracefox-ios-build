@@ -18,6 +18,16 @@ import Foundation
         try store.remove(ownerId: 41)
         let removed = try store.read(ownerId: 41)
         precondition(removed == nil)
+        let service = "one.tracefox.ci.records." + UUID().uuidString
+        let recordA = TraceFoxBotCredentialStore(service: service, accountRecordId: -10)
+        let recordB = TraceFoxBotCredentialStore(service: service, accountRecordId: 20)
+        defer { try? recordA.removeAccountRecord(-10); try? recordB.removeAccountRecord(20) }
+        try recordA.save(value, expectedOwnerId: 41)
+        try recordB.save(changed, expectedOwnerId: 41)
+        try recordA.removeAccountRecord(-10)
+        let erased = try recordA.read(ownerId: 41)
+        let kept = try recordB.read(ownerId: 41)
+        precondition(erased == nil && kept?.token == changed.token)
         print("PASS: real macOS Keychain create/update/read/remove, owner isolation and foreign-owner rejection; synthetic credentials only")
     }
 }

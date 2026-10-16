@@ -10,14 +10,21 @@ public enum TraceFoxBotCredentialError: Error {
 // Keychain scope. Account keys use Telegram user IDs, not the selected UI index.
 public final class TraceFoxBotCredentialStore {
     private let service: String
-    public init(service: String = "one.tracefox.telegram.bot") { self.service = service }
+    private let accountRecordId: Int64?
+    public init(service: String = "one.tracefox.telegram.bot", accountRecordId: Int64? = nil) {
+        self.service = service; self.accountRecordId = accountRecordId
+    }
+
+    private func baseQuery(accountKey: String) -> [String: Any] {
+        return [kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: service,
+                kSecAttrAccount as String: accountKey,
+                kSecAttrSynchronizable as String: false]
+    }
 
     private func query(ownerId: Int64) throws -> [String: Any] {
         guard ownerId > 0 else { throw TraceFoxBotCredentialError.invalidCredentials }
-        return [kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: service,
-                kSecAttrAccount as String: String(ownerId),
-                kSecAttrSynchronizable as String: false]
+        return baseQuery(accountKey: accountRecordId.map { "record:\($0)" } ?? "owner:\(ownerId)")
     }
 
     private func validate(_ value: TraceFoxBotLinkCredentials, ownerId: Int64) throws {
@@ -62,6 +69,14 @@ public final class TraceFoxBotCredentialStore {
 
     public func remove(ownerId: Int64) throws {
         let status = SecItemDelete(try query(ownerId: ownerId) as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw TraceFoxBotCredentialError.keychain(status)
+        }
+    }
+
+    // Logout has a local record ID even after Telegram authorization is lost.
+    public func removeAccountRecord(_ recordId: Int64) throws {
+        let status = SecItemDelete(baseQuery(accountKey: "record:\(recordId)") as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw TraceFoxBotCredentialError.keychain(status)
         }
