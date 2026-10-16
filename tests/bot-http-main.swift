@@ -8,6 +8,9 @@ private final class StubProtocol: URLProtocol {
     override func startLoading() {
         if request.url?.path == "/api/android/status" {
             precondition(request.httpMethod == "GET" && request.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true)
+        } else if request.url?.path == "/api/android/messages" {
+            precondition(request.httpMethod == "POST" && request.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true)
+            precondition(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
         } else {
             precondition(request.url?.path == "/api/android/link" && request.httpMethod == "POST")
             precondition(request.value(forHTTPHeaderField: "Authorization") == nil)
@@ -131,10 +134,28 @@ private final class ImmediateClient: TraceFoxBotClaiming {
             case .failure: precondition(!accepted)
             }
         }
+        let identity = TraceFoxCloudArchiveIdentity(peerNamespace: 0, peerId: 42, messageNamespace: 0, messageId: 7)!
+        let payload = try TraceFoxCloudArchivePayload(identity: identity, text: "synthetic", date: 100, event: .deleted)
+        func submit() throws -> Result<Int64, Error> {
+            let done = DispatchSemaphore(value: 0)
+            var result: Result<Int64, Error>?
+            try client.submit(payload, credentials: credential) { result = $0; done.signal() }
+            precondition(done.wait(timeout: .now() + 5) == .success)
+            return result!
+        }
+        StubProtocol.body = Data("{\"ok\":true,\"archive_id\":99}".utf8)
+        if case .success(99) = try submit() {} else { fatalError("Valid acknowledgement rejected") }
+        for invalid in ["{}", "{\"ok\":false,\"archive_id\":99}", "{\"ok\":true,\"archive_id\":0}"] {
+            StubProtocol.body = Data(invalid.utf8)
+            if case .failure = try submit() {} else { fatalError("Invalid acknowledgement accepted") }
+        }
+        StubProtocol.status = 403
+        if case .failure = try submit() {} else { fatalError("Access failure acknowledged") }
         print("PASS: actual URLSession claim client with URLProtocol fixtures; pending/success/foreign owner/HTTP error/size limits; no live network")
         print("PASS: coordinator explicit begin/cancel, validated claim-to-Keychain flow; synthetic account only")
         print("PASS: deterministic late-response/account-switch race and duplicate poll rejection")
         print("PASS: inline transport completions, thrown request recovery and duplicate callback rejection")
         print("PASS: authenticated device status, owner equality and expiration checks; URLProtocol fixtures only")
+        print("PASS: explicit cloud submit requires a positive server acknowledgement; no real uploads")
     }
 }

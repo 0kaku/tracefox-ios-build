@@ -28,6 +28,7 @@ private final class BotLinkRedirectPolicy: NSObject, URLSessionTaskDelegate {
 }
 
 public final class TraceFoxBotLinkClient: TraceFoxBotClaiming {
+    private struct ArchiveReply: Decodable { let ok: Bool; let archive_id: Int64 }
     private let endpoint: URL
     private let statusEndpoint: URL
     private let session: URLSession
@@ -46,6 +47,34 @@ public final class TraceFoxBotLinkClient: TraceFoxBotClaiming {
     }
 
     deinit { session.invalidateAndCancel() }
+
+    // Explicit single event submission. No automatic queue or retry is started.
+    @discardableResult
+    public func submit(_ payload: TraceFoxCloudArchivePayload, credentials: TraceFoxBotLinkCredentials,
+                       completion: @escaping (Result<Int64, Error>) -> Void) throws -> TraceFoxBotClaimTask {
+        guard credentials.ownerId > 0, credentials.token.utf8.count == 43,
+              credentials.token.range(of: "^[A-Za-z0-9_-]{43}$", options: .regularExpression) != nil else {
+            throw TraceFoxBotLinkError.invalidResponse
+        }
+        var request = URLRequest(url: endpoint.deletingLastPathComponent().appendingPathComponent("messages"))
+        request.httpMethod = "POST"
+        request.setValue("Bearer " + credentials.token, forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpBody = try JSONEncoder().encode(payload)
+        let task = session.dataTask(with: request) { data, response, error in
+            if error != nil { completion(.failure(TraceFoxBotLinkClientError.transport)); return }
+            guard let response = response as? HTTPURLResponse else { completion(.failure(TraceFoxBotLinkClientError.invalidResponse)); return }
+            guard response.statusCode == 200 else { completion(.failure(TraceFoxBotLinkClientError.httpStatus(response.statusCode))); return }
+            guard let data = data, data.count <= 4096,
+                  let reply = try? JSONDecoder().decode(ArchiveReply.self, from: data), reply.ok, reply.archive_id > 0 else {
+                completion(.failure(TraceFoxBotLinkClientError.invalidResponse)); return
+            }
+            completion(.success(reply.archive_id))
+        }
+        task.resume()
+        return task
+    }
 
     @discardableResult
     public func status(credentials: TraceFoxBotLinkCredentials,
