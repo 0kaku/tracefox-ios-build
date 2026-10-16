@@ -30,7 +30,7 @@ public enum TraceFoxBotLinkProtocol {
     }
 
     public static func claimBody(nonce: String) throws -> Data {
-        guard nonce.range(of: "^[a-f0-9]{64}$", options: .regularExpression) != nil else {
+        guard nonce.utf8.count == 64, nonce.range(of: "^[a-f0-9]{64}$", options: .regularExpression) != nil else {
             throw TraceFoxBotLinkError.invalidNonce
         }
         return try JSONSerialization.data(withJSONObject: ["nonce": nonce])
@@ -43,7 +43,7 @@ public enum TraceFoxBotLinkProtocol {
         }
         guard reply.ready else { return nil }
         guard let owner = reply.owner_id, owner == expectedOwnerId else { throw TraceFoxBotLinkError.ownerMismatch }
-        guard let token = reply.token, token.range(of: "^[A-Za-z0-9_-]{43}$", options: .regularExpression) != nil,
+        guard let token = reply.token, token.utf8.count == 43, token.range(of: "^[A-Za-z0-9_-]{43}$", options: .regularExpression) != nil,
               let access = reply.archive_available else { throw TraceFoxBotLinkError.invalidResponse }
         return TraceFoxBotLinkCredentials(ownerId: owner, token: token, archiveAvailable: access)
     }
