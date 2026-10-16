@@ -48,3 +48,23 @@ shape and owner equality. It performs no network requests or token persistence.
 Host run 38828251919 tests the initial validator; exact UTF-8 length checks were
 added locally afterward and remain pending host verification. Real nonce generation,
 Keychain, HTTP lifecycle and user-facing bot pairing remain unimplemented.
+
+Keychain storage preparation: TraceFoxBotCredentialStore uses app-scoped generic
+password items keyed by Telegram owner ID, synchronizable=false and
+AfterFirstUnlockThisDeviceOnly accessibility. It validates ownership/token shape
+on both save and read, distinguishes missing items from Keychain errors and can
+remove only the specified account item. No live pairing is connected. Standalone
+macOS run 38829694018 creates/updates/reads/removes synthetic credentials under a
+unique CI service, leaving other Keychain items untouched. iPhone accessibility,
+logout cleanup and actual app signing entitlements remain to verify. This source
+postdates native candidate 38829268739 and is staged for a later build.
+Run 38829694018 passed, including real macOS Keychain operations with the stated synthetic scope. This does not verify iOS signed-app access or live pairing.
+
+Pairing-attempt preparation: TraceFoxBotPairingAttempt creates 32 random bytes via
+SecRandomCopyBytes, binds approval/claim validation to one Telegram owner and
+rejects use at/after its ten-minute local expiry. The existing backend approval
+command is constructed only; no send operation is implemented or invoked. Tests
+check nonce shape/distinct attempts, owner mismatch, pending state and expiry in
+standalone run 38830159330. App lifecycle, user-facing approval, HTTP and iPhone
+execution remain unimplemented/unverified. This source is staged after the active
+native candidate and does not trigger a duplicate full build.

@@ -62,7 +62,9 @@ class ReadHooksTest(unittest.TestCase):
         path=SOURCE/'submodules/TelegramCore/Sources/State/ManagedSecretChatOutgoingOperations.swift'
         before,after=self.changes()[path]
         self.assertIn('isSecretReadService: true',after)
-        self.assertIn('? .noop(layer: layer, actionGloballyUniqueId: actionGloballyUniqueId) : .readMessageContents',after)
+        self.assertIn('SecretChatSequenceBasedLayer(rawValue: layer.rawValue)',after)
+        self.assertIn('.noop(layer: sequenceLayer, actionGloballyUniqueId: actionGloballyUniqueId)',after)
+        self.assertIn('action = .readMessageContents(layer: layer, actionGloballyUniqueId: actionGloballyUniqueId, globallyUniqueIds: [])',after)
         self.assertEqual(before.count('tagLocalIndex: entry.tagLocalIndex, wasDelivered: operation.delivered)'),after.count('tagLocalIndex: entry.tagLocalIndex, wasDelivered: operation.delivered)'))
 
 if __name__ == '__main__': unittest.main()

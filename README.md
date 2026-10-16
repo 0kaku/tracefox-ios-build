@@ -345,3 +345,17 @@ and updates current-run compile flags only from the downloaded verification repo
 Device and signing flags remain false. Bot-link tests add trailing-newline nonce
 and token rejection with exact UTF-8 length guards; standalone run 38828722166.
 Local 27 checks pass. Main native build 38820852381 remains in progress.
+
+## Archive native compilation milestone and privacy candidate
+
+Native run 38820852381 succeeded. Downloaded IPA independently passed structure,
+arm64/iPhone identity, unsigned-status and SHA-256 checks:
+cbca1e93981378859c3b16bacb43b1b6abad72077db99f97f6442b228ee0640c.
+It includes local archive browser, deletion/read/timer hooks and plain-text edit
+history. Device behavior is unverified; it predates quota/rollback/read resilience
+fixes and privacy integration. The verified artifact is recorded separately in
+status so a later in-progress candidate does not erase that milestone.
+Next native run 38829268739, recipe 64fbe8ff16eca998694c96c966149c6e4fb8096c,
+contains accumulated privacy sources and archive fixes. Privacy navigation remains
+disabled pending native validation. Standalone strict bot-link tests 38828722166
+also succeeded. Signing and physical-device acceptance remain required.

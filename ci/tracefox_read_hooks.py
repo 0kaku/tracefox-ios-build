@@ -51,7 +51,17 @@ def privacy_read_changes(source, prior):
     original, modified = read(secret)
     anchor = 'return sendServiceActionMessage(postbox: postbox, network: network, peerId: entry.peerId, action: .readMessageContents(layer: layer, actionGloballyUniqueId: actionGloballyUniqueId, globallyUniqueIds: globallyUniqueIds), tagLocalIndex: entry.tagLocalIndex, wasDelivered: operation.delivered)'
     if modified.count(anchor) != 1: raise RuntimeError('Queued encrypted read-service sender changed')
-    replacement = 'let action: SecretMessageAction = TraceFoxPrivacyRuntime.decision(network: network, function: "messages.sendEncryptedService", isSecretReadService: true) == .suppress ? .noop(layer: layer, actionGloballyUniqueId: actionGloballyUniqueId) : .readMessageContents(layer: layer, actionGloballyUniqueId: actionGloballyUniqueId, globallyUniqueIds: globallyUniqueIds)\n                                    return sendServiceActionMessage(postbox: postbox, network: network, peerId: entry.peerId, action: action, tagLocalIndex: entry.tagLocalIndex, wasDelivered: operation.delivered)'
+    replacement = '''let action: SecretMessageAction
+                                    if TraceFoxPrivacyRuntime.decision(network: network, function: "messages.sendEncryptedService", isSecretReadService: true) == .suppress {
+                                        if let sequenceLayer = SecretChatSequenceBasedLayer(rawValue: layer.rawValue) {
+                                            action = .noop(layer: sequenceLayer, actionGloballyUniqueId: actionGloballyUniqueId)
+                                        } else {
+                                            action = .readMessageContents(layer: layer, actionGloballyUniqueId: actionGloballyUniqueId, globallyUniqueIds: [])
+                                        }
+                                    } else {
+                                        action = .readMessageContents(layer: layer, actionGloballyUniqueId: actionGloballyUniqueId, globallyUniqueIds: globallyUniqueIds)
+                                    }
+                                    return sendServiceActionMessage(postbox: postbox, network: network, peerId: entry.peerId, action: action, tagLocalIndex: entry.tagLocalIndex, wasDelivered: operation.delivered)'''
     changes[secret] = (original, modified.replace(anchor, replacement))
     discussion = source/'submodules/TelegramCore/Sources/TelegramEngine/Messages/ApplyMaxReadIndexInteractively.swift'
     original, modified = read(discussion)
