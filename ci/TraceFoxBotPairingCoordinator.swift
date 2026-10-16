@@ -9,6 +9,7 @@ public final class TraceFoxBotPairingCoordinator {
     private var attempt: TraceFoxBotPairingAttempt?
     private var task: TraceFoxBotClaimTask?
     private var generation: UInt64 = 0
+    private var activePoll: UUID?
 
     public init(client: TraceFoxBotClaiming, store: TraceFoxBotCredentialStore = TraceFoxBotCredentialStore()) {
         self.client = client; self.store = store
@@ -24,7 +25,7 @@ public final class TraceFoxBotPairingCoordinator {
         lock.lock()
         generation &+= 1
         let previous = task
-        task = nil; attempt = next
+        task = nil; activePoll = nil; attempt = next
         lock.unlock()
         previous?.cancel()
         return command
@@ -34,7 +35,7 @@ public final class TraceFoxBotPairingCoordinator {
         lock.lock()
         generation &+= 1
         let previous = task
-        task = nil; attempt = nil
+        task = nil; activePoll = nil; attempt = nil
         lock.unlock()
         previous?.cancel()
     }
@@ -43,15 +44,18 @@ public final class TraceFoxBotPairingCoordinator {
     // write Keychain. The UI owns polling cadence and cancellation presentation.
     public func poll(completion: @escaping (Result<TraceFoxBotLinkCredentials?, Error>) -> Void) throws {
         lock.lock()
-        defer { lock.unlock() }
-        guard let attempt = attempt else { throw TraceFoxBotCoordinatorError.notStarted }
-        guard task == nil else { throw TraceFoxBotCoordinatorError.busy }
+        guard let attempt = attempt else { lock.unlock(); throw TraceFoxBotCoordinatorError.notStarted }
+        guard activePoll == nil else { lock.unlock(); throw TraceFoxBotCoordinatorError.busy }
         let current = generation
-        task = try client.claim(attempt) { [weak self] result in
+        let pollId = UUID()
+        activePoll = pollId
+        lock.unlock()
+        do {
+            let newTask = try client.claim(attempt) { [weak self] result in
             guard let self = self else { return }
             self.lock.lock()
-            guard self.generation == current else { self.lock.unlock(); return }
-            self.task = nil
+            guard self.generation == current, self.activePoll == pollId else { self.lock.unlock(); return }
+            self.task = nil; self.activePoll = nil
             var outcome = result
             if case let .success(credentials?) = result {
                 do {
@@ -61,6 +65,17 @@ public final class TraceFoxBotPairingCoordinator {
             }
             self.lock.unlock()
             completion(outcome)
+            }
+            lock.lock()
+            let keep = generation == current && activePoll == pollId
+            if keep { task = newTask }
+            lock.unlock()
+            if !keep { newTask.cancel() }
+        } catch {
+            lock.lock()
+            if generation == current && activePoll == pollId { activePoll = nil; task = nil }
+            lock.unlock()
+            throw error
         }
     }
 }

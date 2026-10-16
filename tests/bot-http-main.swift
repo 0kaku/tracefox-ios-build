@@ -35,6 +35,15 @@ private final class ControlledClient: TraceFoxBotClaiming {
     }
 }
 
+private final class ImmediateClient: TraceFoxBotClaiming {
+    var fail = false
+    func claim(_ attempt: TraceFoxBotPairingAttempt, completion: @escaping (Result<TraceFoxBotLinkCredentials?, Error>) -> Void) throws -> TraceFoxBotClaimTask {
+        if fail { throw TraceFoxBotLinkClientError.transport }
+        completion(.success(nil))
+        return ControlledTask()
+    }
+}
+
 @main struct BotHTTPTest {
     static func main() throws {
         let config = URLSessionConfiguration.ephemeral
@@ -92,6 +101,21 @@ private final class ControlledClient: TraceFoxBotClaiming {
         controlled.callbacks[1](.success(TraceFoxBotLinkCredentials(ownerId: 43, token: String(repeating: "c", count: 43), archiveAvailable: false)))
         let current = try raceStore.read(ownerId: 43)
         precondition(current?.ownerId == 43 && currentDelivered)
+        let immediate = ImmediateClient()
+        let inline = TraceFoxBotPairingCoordinator(client: immediate, store: raceStore)
+        _ = try inline.begin(ownerId: 42)
+        var inlineCount = 0
+        try inline.poll { _ in inlineCount += 1 }
+        try inline.poll { _ in inlineCount += 1 }
+        precondition(inlineCount == 2)
+        immediate.fail = true
+        do { try inline.poll { _ in fatalError("Throwing transport completed") }; fatalError("Transport error lost") } catch {}
+        immediate.fail = false
+        try inline.poll { _ in inlineCount += 1 }
+        precondition(inlineCount == 3)
+        controlled.callbacks[1](.success(TraceFoxBotLinkCredentials(ownerId: 43, token: String(repeating: "d", count: 43), archiveAvailable: true)))
+        let unchanged = try raceStore.read(ownerId: 43)
+        precondition(unchanged?.token == String(repeating: "c", count: 43))
         let credential = TraceFoxBotLinkCredentials(ownerId: 42, token: String(repeating: "a", count: 43), archiveAvailable: false)
         func checkStatus() throws -> Result<TraceFoxBotDeviceStatus, Error> {
             let done = DispatchSemaphore(value: 0)
@@ -110,6 +134,7 @@ private final class ControlledClient: TraceFoxBotClaiming {
         print("PASS: actual URLSession claim client with URLProtocol fixtures; pending/success/foreign owner/HTTP error/size limits; no live network")
         print("PASS: coordinator explicit begin/cancel, validated claim-to-Keychain flow; synthetic account only")
         print("PASS: deterministic late-response/account-switch race and duplicate poll rejection")
+        print("PASS: inline transport completions, thrown request recovery and duplicate callback rejection")
         print("PASS: authenticated device status, owner equality and expiration checks; URLProtocol fixtures only")
     }
 }
