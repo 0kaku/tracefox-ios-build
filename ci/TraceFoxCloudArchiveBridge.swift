@@ -2,6 +2,18 @@ import Foundation
 import Postbox
 
 public enum TraceFoxCloudArchiveBridge {
+    public static func payload(record: TraceFoxArchiveRecord, title: String = "Telegram") throws -> TraceFoxCloudArchivePayload? {
+        let peer = PeerId(record.peer)
+        let namespace = peer.namespace._internalGetInt32Value()
+        let peerId = peer.id._internalGetInt64Value()
+        guard let identity = TraceFoxCloudArchiveIdentity(peerNamespace: namespace, peerId: peerId,
+            messageNamespace: record.namespace, messageId: record.message),
+            !(namespace == 0 && peerId == 777000), !record.text.hasPrefix("/android_link ") else { return nil }
+        let event: TraceFoxCloudArchiveEvent = record.deleted ? .deleted : ((record.previousTexts?.isEmpty == false) ? .edited : .message)
+        return try TraceFoxCloudArchivePayload(identity: identity, title: title, text: record.text,
+            date: Int64(record.timestamp), ttlSeconds: record.ttlSeconds, event: event)
+    }
+
     // Converts native cloud messages only. Does not enqueue or transmit content.
     public static func payload(message: Message, title: String = "Telegram",
                                event: TraceFoxCloudArchiveEvent) throws -> TraceFoxCloudArchivePayload? {

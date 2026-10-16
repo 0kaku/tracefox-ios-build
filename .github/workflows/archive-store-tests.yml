@@ -60,7 +60,7 @@ jobs:
           DYLD_LIBRARY_PATH="$RUNNER_TEMP" "$RUNNER_TEMP/archive-bridge-test"
       - name: Test native cloud message adapter with Postbox API fixtures
         run: |
-          swiftc -I "$RUNNER_TEMP" -L "$RUNNER_TEMP" -lPostbox ci/TraceFoxCloudArchiveIdentity.swift ci/TraceFoxCloudArchivePayload.swift ci/TraceFoxCloudArchiveBridge.swift tests/archive-fixtures/TelegramTypes.swift tests/cloud-bridge-main.swift -o "$RUNNER_TEMP/cloud-bridge-test"
+          swiftc -I "$RUNNER_TEMP" -L "$RUNNER_TEMP" -lPostbox ci/TraceFoxArchiveStore.swift ci/TraceFoxCloudArchiveIdentity.swift ci/TraceFoxCloudArchivePayload.swift ci/TraceFoxCloudArchiveBridge.swift tests/archive-fixtures/TelegramTypes.swift tests/cloud-bridge-main.swift -o "$RUNNER_TEMP/cloud-bridge-test"
           DYLD_LIBRARY_PATH="$RUNNER_TEMP" "$RUNNER_TEMP/cloud-bridge-test"
       - name: Test privacy policy and per-account persistence
         run: |

@@ -15,7 +15,14 @@ public struct PeerId: Hashable {
     public let value: Int64
     public let namespace: Namespace
     public var id: Id { Id(value: value) }
-    public init(_ value: Int64, namespace: Int32 = 0) { self.value = value; self.namespace = Namespace(value: namespace) }
+    public init(_ value: Int64) {
+        // Synthetic packing for host adapter tests, not Telegram's bit layout.
+        let encoded = Int32(truncatingIfNeeded: value >> 56)
+        if (1...3).contains(encoded) {
+            self.value = value ^ (Int64(encoded) << 56); self.namespace = Namespace(value: encoded)
+        } else { self.value = value; self.namespace = Namespace(value: 0) }
+    }
+    public init(_ value: Int64, namespace: Int32) { self.value = value; self.namespace = Namespace(value: namespace) }
     public func toInt64() -> Int64 { value ^ (Int64(namespace.value) << 56) }
 }
 public struct MessageId: Hashable {
