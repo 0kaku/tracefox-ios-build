@@ -3,14 +3,14 @@ import Foundation
 public enum TraceFoxBotCoordinatorError: Error { case notStarted, busy }
 
 public final class TraceFoxBotPairingCoordinator {
-    private let client: TraceFoxBotLinkClient
+    private let client: TraceFoxBotClaiming
     private let store: TraceFoxBotCredentialStore
     private let lock = NSLock()
     private var attempt: TraceFoxBotPairingAttempt?
-    private var task: URLSessionDataTask?
+    private var task: TraceFoxBotClaimTask?
     private var generation: UInt64 = 0
 
-    public init(client: TraceFoxBotLinkClient, store: TraceFoxBotCredentialStore = TraceFoxBotCredentialStore()) {
+    public init(client: TraceFoxBotClaiming, store: TraceFoxBotCredentialStore = TraceFoxBotCredentialStore()) {
         self.client = client; self.store = store
     }
 

@@ -4,6 +4,14 @@ public enum TraceFoxBotLinkClientError: Error {
     case transport, invalidResponse, httpStatus(Int)
 }
 
+public protocol TraceFoxBotClaimTask { func cancel() }
+extension URLSessionDataTask: TraceFoxBotClaimTask {}
+
+public protocol TraceFoxBotClaiming: AnyObject {
+    func claim(_ attempt: TraceFoxBotPairingAttempt,
+               completion: @escaping (Result<TraceFoxBotLinkCredentials?, Error>) -> Void) throws -> TraceFoxBotClaimTask
+}
+
 private final class BotLinkRedirectPolicy: NSObject, URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask,
                     willPerformHTTPRedirection response: HTTPURLResponse,
@@ -12,7 +20,7 @@ private final class BotLinkRedirectPolicy: NSObject, URLSessionTaskDelegate {
     }
 }
 
-public final class TraceFoxBotLinkClient {
+public final class TraceFoxBotLinkClient: TraceFoxBotClaiming {
     private let endpoint: URL
     private let session: URLSession
 
@@ -33,7 +41,7 @@ public final class TraceFoxBotLinkClient {
     // Explicit single poll only; callers own polling, cancellation and current-account lifecycle.
     @discardableResult
     public func claim(_ attempt: TraceFoxBotPairingAttempt,
-                      completion: @escaping (Result<TraceFoxBotLinkCredentials?, Error>) -> Void) throws -> URLSessionDataTask {
+                      completion: @escaping (Result<TraceFoxBotLinkCredentials?, Error>) -> Void) throws -> TraceFoxBotClaimTask {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

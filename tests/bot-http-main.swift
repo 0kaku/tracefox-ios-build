@@ -16,6 +16,21 @@ private final class StubProtocol: URLProtocol {
     override func stopLoading() {}
 }
 
+private final class ControlledTask: TraceFoxBotClaimTask {
+    var cancelled = false
+    func cancel() { cancelled = true }
+}
+
+private final class ControlledClient: TraceFoxBotClaiming {
+    var callbacks: [(Result<TraceFoxBotLinkCredentials?, Error>) -> Void] = []
+    var tasks: [ControlledTask] = []
+    func claim(_ attempt: TraceFoxBotPairingAttempt, completion: @escaping (Result<TraceFoxBotLinkCredentials?, Error>) -> Void) throws -> TraceFoxBotClaimTask {
+        let task = ControlledTask()
+        callbacks.append(completion); tasks.append(task)
+        return task
+    }
+}
+
 @main struct BotHTTPTest {
     static func main() throws {
         let config = URLSessionConfiguration.ephemeral
@@ -55,7 +70,26 @@ private final class StubProtocol: URLProtocol {
         precondition(saved.wait(timeout: .now() + 5) == .success)
         let stored = try store.read(ownerId: 42)
         precondition(stored?.token == String(repeating: "b", count: 43))
+        let raceStore = TraceFoxBotCredentialStore(service: "one.tracefox.ci.race." + UUID().uuidString)
+        defer { try? raceStore.remove(ownerId: 42); try? raceStore.remove(ownerId: 43) }
+        let controlled = ControlledClient()
+        let racing = TraceFoxBotPairingCoordinator(client: controlled, store: raceStore)
+        _ = try racing.begin(ownerId: 42)
+        var staleDelivered = false
+        try racing.poll { _ in staleDelivered = true }
+        do { try racing.poll { _ in fatalError("Duplicate poll completed") }; fatalError("Duplicate poll accepted") } catch {}
+        _ = try racing.begin(ownerId: 43)
+        precondition(controlled.tasks[0].cancelled)
+        controlled.callbacks[0](.success(TraceFoxBotLinkCredentials(ownerId: 42, token: String(repeating: "a", count: 43), archiveAvailable: true)))
+        let stale = try raceStore.read(ownerId: 42)
+        precondition(stale == nil && !staleDelivered)
+        var currentDelivered = false
+        try racing.poll { _ in currentDelivered = true }
+        controlled.callbacks[1](.success(TraceFoxBotLinkCredentials(ownerId: 43, token: String(repeating: "c", count: 43), archiveAvailable: false)))
+        let current = try raceStore.read(ownerId: 43)
+        precondition(current?.ownerId == 43 && currentDelivered)
         print("PASS: actual URLSession claim client with URLProtocol fixtures; pending/success/foreign owner/HTTP error/size limits; no live network")
         print("PASS: coordinator explicit begin/cancel, validated claim-to-Keychain flow; synthetic account only")
+        print("PASS: deterministic late-response/account-switch race and duplicate poll rejection")
     }
 }
