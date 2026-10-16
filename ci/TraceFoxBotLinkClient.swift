@@ -19,6 +19,11 @@ public protocol TraceFoxBotClaiming: AnyObject {
                completion: @escaping (Result<TraceFoxBotLinkCredentials?, Error>) -> Void) throws -> TraceFoxBotClaimTask
 }
 
+public protocol TraceFoxCloudSubmitting: AnyObject {
+    func submit(_ payload: TraceFoxCloudArchivePayload, credentials: TraceFoxBotLinkCredentials,
+                completion: @escaping (Result<Int64, Error>) -> Void) throws -> TraceFoxBotClaimTask
+}
+
 private final class BotLinkRedirectPolicy: NSObject, URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask,
                     willPerformHTTPRedirection response: HTTPURLResponse,
@@ -27,7 +32,7 @@ private final class BotLinkRedirectPolicy: NSObject, URLSessionTaskDelegate {
     }
 }
 
-public final class TraceFoxBotLinkClient: TraceFoxBotClaiming {
+public final class TraceFoxBotLinkClient: TraceFoxBotClaiming, TraceFoxCloudSubmitting {
     private struct ArchiveReply: Decodable { let ok: Bool; let archive_id: Int64 }
     private let endpoint: URL
     private let statusEndpoint: URL

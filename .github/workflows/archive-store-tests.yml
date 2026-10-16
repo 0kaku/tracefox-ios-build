@@ -33,6 +33,10 @@ jobs:
         run: |
           swiftc ci/TraceFoxCloudArchiveIdentity.swift ci/TraceFoxCloudArchivePayload.swift ci/TraceFoxCloudArchiveQueue.swift tests/cloud-queue-main.swift -o "$RUNNER_TEMP/cloud-queue-test"
           "$RUNNER_TEMP/cloud-queue-test"
+      - name: Test queue sender acknowledgements without network access
+        run: |
+          swiftc ci/TraceFoxBotLinkProtocol.swift ci/TraceFoxBotPairingAttempt.swift ci/TraceFoxCloudArchiveIdentity.swift ci/TraceFoxCloudArchivePayload.swift ci/TraceFoxCloudArchiveQueue.swift ci/TraceFoxBotLinkClient.swift ci/TraceFoxCloudArchiveSender.swift tests/cloud-sender-main.swift -o "$RUNNER_TEMP/cloud-sender-test"
+          "$RUNNER_TEMP/cloud-sender-test"
       - name: Test account-scoped Keychain with synthetic credentials
         run: |
           swiftc ci/TraceFoxBotLinkProtocol.swift ci/TraceFoxBotCredentialStore.swift tests/bot-keychain-main.swift -o "$RUNNER_TEMP/bot-keychain-test"
