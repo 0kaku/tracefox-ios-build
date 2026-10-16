@@ -359,3 +359,16 @@ Next native run 38829268739, recipe 64fbe8ff16eca998694c96c966149c6e4fb8096c,
 contains accumulated privacy sources and archive fixes. Privacy navigation remains
 disabled pending native validation. Standalone strict bot-link tests 38828722166
 also succeeded. Signing and physical-device acceptance remain required.
+
+## Native privacy compile failure fixed
+
+Run 38829268739 failed in ManagedSecretChatOutgoingOperations: noop requires
+SecretChatSequenceBasedLayer, while queued reads supply SecretChatLayer. The
+patch now converts compatible rawValue cases explicitly; legacy layer8 uses a
+native read-service payload with an empty ID vector, preserving queue processing
+without disclosing actual read message IDs. Protocol behavior still needs device
+verification. Sanitized diagnostics are saved in ios-ci-runs/38829268739.
+The corrected candidate was dispatched at ed6d6f205e6fe05a3e38f72121a0e58237757c50.
+Host run 38830649430 passed, including URLSession claim-client tests through local
+URLProtocol fixtures. HTTP redirects are rejected; cookies/cache are disabled.
+This performs no live pairing. Native HTTP/Keychain integration and UI remain open.

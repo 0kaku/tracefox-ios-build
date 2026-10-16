@@ -40,6 +40,7 @@ private final class PrivacyScreenModel {
             self.operation.set(nil)
             self.current.accountActive = active
             self.current.busy = false
+            self.current.needsRetry = false
             if active {
                 do {
                     self.current.enabled = try TraceFoxPrivacyRuntime.preferences(network: context.account.network).readEnabled()
