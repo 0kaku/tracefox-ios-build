@@ -45,7 +45,7 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
             .notice(id: 1, section: .messages, text: "Показано копій: \(records.count). Наступні записи можна завантажити нижче. Файли зберігаються лише коли були завантажені до видалення; ліміти: 64 MiB на файл, 1 GiB на архів.")
         ]
         if loadFailed {
-            entries.append(.notice(id: 2, section: .messages, text: "Не вдалося відкрити архів. Поверніться та спробуйте ще раз."))
+            entries.append(.notice(id: 2, section: .messages, text: records.isEmpty ? "Не вдалося відкрити архів. Поверніться та спробуйте ще раз." : "Не вдалося завантажити наступну сторінку. Уже відкриті копії збережено на екрані; спробуйте ще раз нижче."))
         } else if records.isEmpty {
             entries.append(.notice(id: 2, section: .messages, text: "Збережених копій поки немає."))
         }
@@ -56,6 +56,7 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
         formatter.dateStyle = .short; formatter.timeStyle = .short
         for (index, record) in records.enumerated() {
             let title = formatter.string(from: Date(timeIntervalSince1970: TimeInterval(record.timestamp)))
+            let recordState = record.deleted ? " · Видалене" : ((record.previousTexts?.isEmpty == false) ? " · Редаговане" : "")
             let lifetime: String
             if record.ttlSeconds == Int32.max { lifetime = " · Один перегляд" }
             else if let ttl = record.ttlSeconds, ttl > 0 { lifetime = " · Таймер \(ttl) с" }
@@ -64,7 +65,7 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
                 "\nПопередній текст:\n" + String($0.prefix(1000))
             }.joined()
             entries.append(.notice(id: 10 + index * 3, section: .messages,
-                text: title + " · Чат \(record.peer)" + lifetime + "\n" + String(record.text.prefix(3000)) + history + "\nФайлів: \(record.files.count)"))
+                text: title + " · Чат \(record.peer)" + recordState + lifetime + "\n" + String(record.text.prefix(3000)) + history + "\nФайлів: \(record.files.count)"))
             entries.append(.action(id: 11 + index * 3, section: .messages, actionType: index * 2,
                 text: "Відкрити / поділитися копією", kind: .generic))
             entries.append(.action(id: 12 + index * 3, section: .messages, actionType: index * 2 + 1,
