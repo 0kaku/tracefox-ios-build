@@ -12,7 +12,7 @@ import SGItemListUI
 private enum TraceFoxArchiveSection: Int32, SGItemListSection { case messages }
 private typealias ArchiveEntry = SGItemListUIEntry<TraceFoxArchiveSection, Int, Int, Int, Int, Int>
 
-public func traceFoxArchiveController(context: AccountContext) -> ViewController {
+public func traceFoxArchiveController(context: AccountContext, mediaTabs: Bool = true) -> ViewController {
     let recordsPromise = Promise<([TraceFoxArchiveRecord], Bool, Bool, Int)>()
     var currentRecords: [TraceFoxArchiveRecord] = []
     var shareImpl: ((TraceFoxArchiveRecord) -> Void)?
@@ -40,7 +40,7 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
                 let store = try TraceFoxLocalArchive.store(mediaBox: context.account.postbox.mediaBox)
                 let kind = TraceFoxArchiveCategory(rawValue: selected)!
                 let records = try store.records(matching: { record in
-                    kind.includes(record) && (kind == .secretChats || record.files.contains(where: { (try? store.mediaURL(name: $0)) != nil }))
+                    !mediaTabs || (kind.includes(record) && (kind == .secretChats || record.files.contains(where: { (try? store.mediaURL(name: $0)) != nil })))
                 })
                 DispatchQueue.main.async {
                     guard token == loadGeneration else { return }
@@ -92,7 +92,7 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
                 text: "Відкрити / поділитися копією", kind: .generic))
         }
         let state = ItemListControllerState(presentationData: ItemListPresentationData(presentationData),
-            title: .textWithTabs("Архів TraceFox", TraceFoxArchiveCategory.allCases.map { $0.title }, selected), leftNavigationButton: nil, rightNavigationButton: nil,
+            title: mediaTabs ? .textWithTabs("Архів TraceFox", TraceFoxArchiveCategory.allCases.map { $0.title }, selected) : .text("Копії повідомлень"), leftNavigationButton: nil, rightNavigationButton: nil,
             backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
         let list = ItemListNodeState(presentationData: ItemListPresentationData(presentationData),
             entries: entries, style: .blocks, ensureVisibleItemTag: nil, initialScrollToItem: nil)
@@ -112,7 +112,7 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
                 let store = try TraceFoxLocalArchive.store(mediaBox: context.account.postbox.mediaBox)
                 let kind = TraceFoxArchiveCategory(rawValue: selected)!
                 let next = try store.records(before: cursor, matching: { record in
-                    kind.includes(record) && (kind == .secretChats || record.files.contains(where: { (try? store.mediaURL(name: $0)) != nil }))
+                    !mediaTabs || (kind.includes(record) && (kind == .secretChats || record.files.contains(where: { (try? store.mediaURL(name: $0)) != nil })))
                 })
                 DispatchQueue.main.async {
                     guard token == loadGeneration else { return }
@@ -129,7 +129,7 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
         }
     }
     controller.titleControlValueChanged = { index in
-        guard TraceFoxArchiveCategory(rawValue: index) != nil, index != category else { return }
+        guard mediaTabs, TraceFoxArchiveCategory(rawValue: index) != nil, index != category else { return }
         category = index; loadGeneration += 1; loadingMore = false; currentRecords = []
         recordsPromise.set(.single(([], false, false, index)))
         refreshImpl?()

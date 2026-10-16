@@ -37,6 +37,7 @@ public final class TraceFoxBotLinkClient: TraceFoxBotClaiming, TraceFoxCloudSubm
     private let endpoint: URL
     private let statusEndpoint: URL
     private let session: URLSession
+    private let uploadSession: URLSession
 
     public init(origin: URL, configuration: URLSessionConfiguration = .ephemeral) throws {
         endpoint = try TraceFoxBotLinkProtocol.claimURL(origin: origin)
@@ -49,9 +50,13 @@ public final class TraceFoxBotLinkClient: TraceFoxBotClaiming, TraceFoxCloudSubm
         config.timeoutIntervalForRequest = 15
         config.timeoutIntervalForResource = 20
         session = URLSession(configuration: config, delegate: BotLinkRedirectPolicy(), delegateQueue: nil)
+        let mediaConfig = config.copy() as! URLSessionConfiguration
+        mediaConfig.timeoutIntervalForRequest = 30
+        mediaConfig.timeoutIntervalForResource = 180
+        uploadSession = URLSession(configuration: mediaConfig, delegate: BotLinkRedirectPolicy(), delegateQueue: nil)
     }
 
-    deinit { session.invalidateAndCancel() }
+    deinit { session.invalidateAndCancel(); uploadSession.invalidateAndCancel() }
 
     // Explicit single event submission. No automatic queue or retry is started.
     @discardableResult
@@ -107,7 +112,7 @@ public final class TraceFoxBotLinkClient: TraceFoxBotClaiming, TraceFoxCloudSubm
         request.setValue("telegram_client", forHTTPHeaderField: "X-Source")
         request.setValue(payload.temporary ? "true" : "false", forHTTPHeaderField: "X-Temporary")
         request.setValue(payload.ttl_seconds == Int32.max ? "true" : "false", forHTTPHeaderField: "X-View-Once")
-        let task = session.uploadTask(with: request, fromFile: file) { data, response, error in
+        let task = uploadSession.uploadTask(with: request, fromFile: file) { data, response, error in
             if error != nil { completion(.failure(TraceFoxBotLinkClientError.transport)); return }
             guard let response = response as? HTTPURLResponse else { completion(.failure(TraceFoxBotLinkClientError.invalidResponse)); return }
             guard response.statusCode == 200 else { completion(.failure(TraceFoxBotLinkClientError.httpStatus(response.statusCode))); return }
