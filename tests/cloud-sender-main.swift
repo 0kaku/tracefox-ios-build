@@ -40,6 +40,21 @@ private final class TestSubmitter: TraceFoxCloudSubmitting {
         let duplicate = try queue.first(); precondition(duplicate?.id == second)
         let foreign = TraceFoxBotLinkCredentials(ownerId: 43, token: credential.token, archiveAvailable: true)
         do { try sender.sendNext(credentials: foreign) { _ in }; fatalError("Foreign owner sent queue") } catch {}
+        for status in [401, 403] {
+            var receivedStatus: Int?
+            try sender.sendNext(credentials: credential) { result in
+                if case let .failure(error) = result,
+                   case let .httpStatus(code)? = error as? TraceFoxBotLinkClientError { receivedStatus = code }
+            }
+            client.replies.last?(.failure(TraceFoxBotLinkClientError.httpStatus(status)))
+            let pending = try queue.first()
+            precondition(receivedStatus == status && pending?.id == second)
+        }
+        // A renewed credential can retry the same durable event after authorization failure.
+        let renewed = TraceFoxBotLinkCredentials(ownerId: 42, token: String(repeating: "b", count: 43), archiveAvailable: true)
+        try sender.sendNext(credentials: renewed) { _ in }
+        client.replies.last?(.success(100))
+        let retried = try queue.first(); precondition(retried == nil)
         print("PASS: queue-to-submit acknowledgement, failure/cancel retention, invalid/duplicate acknowledgement and owner rejection; fake transport only")
     }
 }

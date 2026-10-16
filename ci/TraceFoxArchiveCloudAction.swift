@@ -80,7 +80,9 @@ final class TraceFoxArchiveCloudAction {
                     case let .success(id?):
                         message = selectedId == nil || selectedId == id ? "Сервер підтвердив збереження текстової події." : "Надіслано попередню подію. Вибрана копія залишається в черзі; надішліть наступну подію."
                     case let .failure(error):
-                        if case .httpStatus(403)? = error as? TraceFoxBotLinkClientError {
+                        if case .httpStatus(401)? = error as? TraceFoxBotLinkClientError {
+                            message = "Прив’язка більше не дійсна. Повторно прив’яжіть цей акаунт у налаштуваннях TraceFox. Подія залишається в черзі."
+                        } else if case .httpStatus(403)? = error as? TraceFoxBotLinkClientError {
                             message = "Сервер не надав доступу до архіву. Подія залишається в черзі."
                         } else {
                             message = "Надсилання не підтверджено. Подія залишається в черзі; перевірте мережу та прив’язку."
