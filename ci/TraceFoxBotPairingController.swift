@@ -85,9 +85,10 @@ private final class BotPairingScreenModel {
             case 1:
                 guard let coordinator = coordinator, current.hasAttempt else { return }
                 current.busy = true
+                let expectedGeneration = generation
                 try coordinator.poll { [weak self] result in
                     DispatchQueue.main.async { [weak self] in
-                        guard let self = self else { return }
+                        guard let self = self, self.generation == expectedGeneration, self.current.accountActive else { return }
                         self.current.busy = false
                         switch result {
                         case .success(nil): self.current.message = "Підтвердження ще немає. Надішліть скопійований код боту з цього акаунта."
