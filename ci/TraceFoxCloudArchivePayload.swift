@@ -5,7 +5,7 @@ public enum TraceFoxCloudArchivePayloadError: Error { case invalidText, invalidT
 
 // Mirrors the existing AndroidMessage backend schema. Encoding does not enqueue
 // or transmit an event. Native callers must first derive a supported cloud identity.
-public struct TraceFoxCloudArchivePayload: Encodable {
+public struct TraceFoxCloudArchivePayload: Codable, Equatable {
     public let chat_id: Int64
     public let message_id: Int32
     public let chat_type: String

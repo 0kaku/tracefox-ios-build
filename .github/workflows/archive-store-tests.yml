@@ -29,6 +29,10 @@ jobs:
           path: ${{ runner.temp }}/cloud-payload-fixtures.json
           retention-days: 7
           if-no-files-found: error
+      - name: Test durable cloud event queue without network access
+        run: |
+          swiftc ci/TraceFoxCloudArchiveIdentity.swift ci/TraceFoxCloudArchivePayload.swift ci/TraceFoxCloudArchiveQueue.swift tests/cloud-queue-main.swift -o "$RUNNER_TEMP/cloud-queue-test"
+          "$RUNNER_TEMP/cloud-queue-test"
       - name: Test account-scoped Keychain with synthetic credentials
         run: |
           swiftc ci/TraceFoxBotLinkProtocol.swift ci/TraceFoxBotCredentialStore.swift tests/bot-keychain-main.swift -o "$RUNNER_TEMP/bot-keychain-test"
