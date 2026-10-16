@@ -11,6 +11,13 @@ private final class StubProtocol: URLProtocol {
         } else if request.url?.path == "/api/android/messages" {
             precondition(request.httpMethod == "POST" && request.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true)
             precondition(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        } else if request.url?.path == "/api/client/secret/messages" || request.url?.path == "/api/client/secret/media" {
+            precondition(request.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true)
+            if request.httpMethod == "PUT" {
+                precondition(request.value(forHTTPHeaderField: "X-Secret-Chat-Id") == "42")
+                precondition(request.value(forHTTPHeaderField: "X-Secret-Random-Id") == "-9223372036854775808")
+                precondition(request.value(forHTTPHeaderField: "X-Message-Id") == nil)
+            } else { precondition(request.httpMethod == "POST") }
         } else if request.url?.path == "/api/android/media" {
             precondition(request.httpMethod == "PUT" && request.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true)
             precondition(request.value(forHTTPHeaderField: "X-Chat-Id") == "42" && request.value(forHTTPHeaderField: "X-Message-Id") == "7")
@@ -167,6 +174,14 @@ private final class ImmediateClient: TraceFoxBotClaiming {
         }
         StubProtocol.status=200;StubProtocol.body=Data("{\"ok\":true,\"archive_id\":99}".utf8)
         if case .success(99) = try upload() {} else { fatalError("Valid file acknowledgement rejected") }
+        let secret = TraceFoxBackupPayload.secretChat(try TraceFoxSecretArchivePayload(chatId: 42, randomId: Int64.min, text: "secret", date: 100, ttlSeconds: Int32.max, event: .deleted))
+        for media in [false, true] {
+            let done = DispatchSemaphore(value: 0); var outcome: Result<Int64, Error>?
+            if media { try client.upload(file: file, payload: secret, credentials: credential) { outcome = $0; done.signal() } }
+            else { try client.submit(secret, credentials: credential) { outcome = $0; done.signal() } }
+            precondition(done.wait(timeout: .now() + 5) == .success)
+            if case .success(99)? = outcome {} else { fatalError("Secret archive request failed") }
+        }
         StubProtocol.status=401
         if case .failure = try upload() {} else { fatalError("Upload authorization failure accepted") }
         try Data().write(to:file)
