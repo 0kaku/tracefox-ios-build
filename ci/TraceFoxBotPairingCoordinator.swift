@@ -17,8 +17,8 @@ public final class TraceFoxBotPairingCoordinator {
 
     deinit { cancel() }
 
-    // The UI must cancel on account switch/logout and send no approval command
-    // without the user's explicit action. This method only returns command text.
+    // Callers cancel on account switch/logout. This method returns command text;
+    // the authorized automatic service owns sending and polling cadence.
     public func begin(ownerId: Int64) throws -> String {
         let next = try TraceFoxBotPairingAttempt(ownerId: ownerId)
         let command = try next.approvalCommand()

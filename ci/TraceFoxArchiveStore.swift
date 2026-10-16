@@ -114,7 +114,7 @@ public final class TraceFoxArchiveStore {
         }
     }
 
-    public func records(limit: Int = 100, before: TraceFoxArchiveCursor? = nil) throws -> [TraceFoxArchiveRecord] {
+    public func records(limit: Int = 100, before: TraceFoxArchiveCursor? = nil, matching: ((TraceFoxArchiveRecord) -> Bool)? = nil) throws -> [TraceFoxArchiveRecord] {
         lock.lock(); defer { lock.unlock() }
         let pageSize = max(0, min(limit, 100))
         guard pageSize > 0 else { return [] }
@@ -127,6 +127,7 @@ public final class TraceFoxArchiveStore {
                   size <= 1024 * 1024,
                   let data = try? Data(contentsOf: path), data.count <= 1024 * 1024 else { continue }
             if let value = try? JSONDecoder().decode(TraceFoxArchiveRecord.self, from: data) {
+                if let matching = matching, !matching(value) { continue }
                 if let cursor = before, !(value.timestamp < cursor.timestamp || (value.timestamp == cursor.timestamp && value.key < cursor.key)) { continue }
                 // Retain only this page while scanning; archive text can approach the disk quota.
                 let index = records.firstIndex {

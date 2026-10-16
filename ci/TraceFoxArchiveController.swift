@@ -13,46 +13,54 @@ private enum TraceFoxArchiveSection: Int32, SGItemListSection { case messages }
 private typealias ArchiveEntry = SGItemListUIEntry<TraceFoxArchiveSection, Int, Int, Int, Int, Int>
 
 public func traceFoxArchiveController(context: AccountContext) -> ViewController {
-    let cloud = TraceFoxArchiveCloudAction(context: context)
-    let recordsPromise = Promise<([TraceFoxArchiveRecord], Bool, Bool)>()
+    let recordsPromise = Promise<([TraceFoxArchiveRecord], Bool, Bool, Int)>()
     var currentRecords: [TraceFoxArchiveRecord] = []
     var shareImpl: ((TraceFoxArchiveRecord) -> Void)?
     var loadMoreImpl: (() -> Void)?
     var refreshImpl: (() -> Void)?
     var loadingMore = false
+    var category = 0
+    var loadGeneration = 0
     let arguments = SGItemListArguments<Int, Int, Int, Int, Int>(context: context, action: { index in
-        if index == -1 { cloud.send(); return }
         if index == -2 { loadMoreImpl?(); return }
         if index == -3 { refreshImpl?(); return }
         let recordIndex = index / 2
         guard currentRecords.indices.contains(recordIndex) else { return }
         if index % 2 == 0 { shareImpl?(currentRecords[recordIndex]) }
-        else { cloud.send(record: currentRecords[recordIndex]) }
     })
     refreshImpl = {
         guard !loadingMore else { return }
         loadingMore = true
         let existing = currentRecords
+        let selected = category
+        loadGeneration += 1
+        let token = loadGeneration
         DispatchQueue(label: "tracefox.archive.browser").async {
             do {
-                let records = try TraceFoxLocalArchive.store(mediaBox: context.account.postbox.mediaBox).records()
+                let store = try TraceFoxLocalArchive.store(mediaBox: context.account.postbox.mediaBox)
+                let kind = TraceFoxArchiveCategory(rawValue: selected)!
+                let records = try store.records(matching: { record in
+                    kind.includes(record) && (kind == .secretChats || record.files.contains(where: { (try? store.mediaURL(name: $0)) != nil }))
+                })
                 DispatchQueue.main.async {
+                    guard token == loadGeneration else { return }
                     loadingMore = false
-                    recordsPromise.set(.single((records, false, records.count == 100)))
+                    recordsPromise.set(.single((records, false, records.count == 100, selected)))
                 }
             } catch {
                 DispatchQueue.main.async {
+                    guard token == loadGeneration else { return }
                     loadingMore = false
-                    recordsPromise.set(.single((existing, true, !existing.isEmpty)))
+                    recordsPromise.set(.single((existing, true, !existing.isEmpty, selected)))
                 }
             }
         }
     }
     refreshImpl?()
-    let signal = combineLatest(context.sharedContext.presentationData, recordsPromise.get(), cloud.status.get())
+    let signal = combineLatest(context.sharedContext.presentationData, recordsPromise.get())
     |> deliverOnMainQueue
-    |> map { presentationData, result, cloudStatus -> (ItemListControllerState, (ItemListNodeState, Any)) in
-        let (records, loadFailed, hasMore) = result
+    |> map { presentationData, result -> (ItemListControllerState, (ItemListNodeState, Any)) in
+        let (records, loadFailed, hasMore, selected) = result
         currentRecords = records
         var entries: [ArchiveEntry] = [
             .header(id: 0, section: .messages, text: "Локальний архів TraceFox", badge: nil),
@@ -63,8 +71,7 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
         } else if records.isEmpty {
             entries.append(.notice(id: 2, section: .messages, text: "Збережених копій поки немає."))
         }
-        entries.append(.notice(id: 3, section: .messages, text: cloudStatus))
-        entries.append(.action(id: 4, section: .messages, actionType: -1, text: "Надіслати наступну текстову подію черги", kind: .generic))
+        entries.append(.notice(id: 3, section: .messages, text: "Акаунт підключається до бота автоматично. Резервні копії підтримуваних хмарних чатів надсилаються у фоні під час роботи застосунку; секретні чати залишаються локальними."))
         if hasMore { entries.append(.action(id: 5, section: .messages, actionType: -2, text: "Показати наступні 100 копій", kind: .generic)) }
         entries.append(.action(id: 6, section: .messages, actionType: -3, text: "Оновити список копій", kind: .generic))
         let formatter = DateFormatter()
@@ -83,11 +90,9 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
                 text: title + " · Чат \(record.peer)" + recordState + lifetime + "\n" + String(record.text.prefix(3000)) + history + "\nФайлів: \(record.files.count)"))
             entries.append(.action(id: 11 + index * 3, section: .messages, actionType: index * 2,
                 text: "Відкрити / поділитися копією", kind: .generic))
-            entries.append(.action(id: 12 + index * 3, section: .messages, actionType: index * 2 + 1,
-                text: "Надіслати текст копії в хмарний архів", kind: .generic))
         }
         let state = ItemListControllerState(presentationData: ItemListPresentationData(presentationData),
-            title: .text("Архів TraceFox"), leftNavigationButton: nil, rightNavigationButton: nil,
+            title: .textWithTabs("Архів TraceFox", TraceFoxArchiveCategory.allCases.map { $0.title }, selected), leftNavigationButton: nil, rightNavigationButton: nil,
             backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
         let list = ItemListNodeState(presentationData: ItemListPresentationData(presentationData),
             entries: entries, style: .blocks, ensureVisibleItemTag: nil, initialScrollToItem: nil)
@@ -99,22 +104,36 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
         loadingMore = true
         let existing = currentRecords
         let cursor = TraceFoxArchiveCursor(record: last)
+        let selected = category
+        loadGeneration += 1
+        let token = loadGeneration
         DispatchQueue(label: "tracefox.archive.browser.more").async {
             do {
-                let next = try TraceFoxLocalArchive.store(mediaBox: context.account.postbox.mediaBox).records(before: cursor)
+                let store = try TraceFoxLocalArchive.store(mediaBox: context.account.postbox.mediaBox)
+                let kind = TraceFoxArchiveCategory(rawValue: selected)!
+                let next = try store.records(before: cursor, matching: { record in
+                    kind.includes(record) && (kind == .secretChats || record.files.contains(where: { (try? store.mediaURL(name: $0)) != nil }))
+                })
                 DispatchQueue.main.async {
+                    guard token == loadGeneration else { return }
                     loadingMore = false
-                    recordsPromise.set(.single((existing + next, false, next.count == 100)))
+                    recordsPromise.set(.single((existing + next, false, next.count == 100, selected)))
                 }
             } catch {
                 DispatchQueue.main.async {
+                    guard token == loadGeneration else { return }
                     loadingMore = false
-                    recordsPromise.set(.single((existing, true, true)))
+                    recordsPromise.set(.single((existing, true, true, selected)))
                 }
             }
         }
     }
-    controller.didDisappear = { [weak cloud] _ in cloud?.cancel() }
+    controller.titleControlValueChanged = { index in
+        guard TraceFoxArchiveCategory(rawValue: index) != nil, index != category else { return }
+        category = index; loadGeneration += 1; loadingMore = false; currentRecords = []
+        recordsPromise.set(.single(([], false, false, index)))
+        refreshImpl?()
+    }
     shareImpl = { [weak controller] record in
         guard let controller = controller else { return }
         var items: [Any] = []

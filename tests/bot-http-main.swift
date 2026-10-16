@@ -11,6 +11,11 @@ private final class StubProtocol: URLProtocol {
         } else if request.url?.path == "/api/android/messages" {
             precondition(request.httpMethod == "POST" && request.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true)
             precondition(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        } else if request.url?.path == "/api/android/media" {
+            precondition(request.httpMethod == "PUT" && request.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true)
+            precondition(request.value(forHTTPHeaderField: "X-Chat-Id") == "42" && request.value(forHTTPHeaderField: "X-Message-Id") == "7")
+            precondition(request.value(forHTTPHeaderField: "X-View-Once") == "true" && request.value(forHTTPHeaderField: "X-Source") == "telegram_client")
+            precondition(request.value(forHTTPHeaderField: "Content-Type") == "image/jpeg")
         } else {
             precondition(request.url?.path == "/api/android/link" && request.httpMethod == "POST")
             precondition(request.value(forHTTPHeaderField: "Authorization") == nil)
@@ -151,6 +156,21 @@ private final class ImmediateClient: TraceFoxBotClaiming {
         }
         StubProtocol.status = 403
         if case .failure = try submit() {} else { fatalError("Access failure acknowledged") }
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jpg")
+        defer { try? FileManager.default.removeItem(at:file) }
+        try Data("synthetic-file".utf8).write(to:file)
+        let temporary = try TraceFoxCloudArchivePayload(identity:identity,text:"fixture",date:100,ttlSeconds:Int32.max,event:.deleted)
+        func upload() throws -> Result<Int64, Error> {
+            let done = DispatchSemaphore(value:0);var outcome: Result<Int64, Error>?
+            try client.upload(file:file,payload:temporary,credentials:credential) { outcome=$0;done.signal() }
+            precondition(done.wait(timeout:.now()+5) == .success);return outcome!
+        }
+        StubProtocol.status=200;StubProtocol.body=Data("{\"ok\":true,\"archive_id\":99}".utf8)
+        if case .success(99) = try upload() {} else { fatalError("Valid file acknowledgement rejected") }
+        StubProtocol.status=401
+        if case .failure = try upload() {} else { fatalError("Upload authorization failure accepted") }
+        try Data().write(to:file)
+        do { _ = try upload();fatalError("Empty retained file accepted") } catch {}
         print("PASS: actual URLSession claim client with URLProtocol fixtures; pending/success/foreign owner/HTTP error/size limits; no live network")
         print("PASS: coordinator explicit begin/cancel, validated claim-to-Keychain flow; synthetic account only")
         print("PASS: deterministic late-response/account-switch race and duplicate poll rejection")
