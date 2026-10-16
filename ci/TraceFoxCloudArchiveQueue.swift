@@ -61,6 +61,11 @@ public final class TraceFoxCloudArchiveQueue {
         return try read().entries.first
     }
 
+    public func pendingCount() throws -> Int {
+        lock.lock(); defer { lock.unlock() }
+        return try read().entries.count
+    }
+
     @discardableResult public func enqueue(_ payload: TraceFoxCloudArchivePayload) throws -> UUID {
         lock.lock(); defer { lock.unlock() }
         try payload.validate()

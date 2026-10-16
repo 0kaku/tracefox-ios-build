@@ -74,7 +74,7 @@ final class TraceFoxArchiveCloudAction {
                 self?.workQueue.async { [weak self] in
                     guard let self = self, self.generation == token, self.active else { return }
                     self.busy = false; self.sender = nil; self.client = nil
-                    let message: String
+                    var message: String
                     switch result {
                     case .success(nil): message = "Черга текстових подій порожня."
                     case let .success(id?):
@@ -85,6 +85,9 @@ final class TraceFoxArchiveCloudAction {
                         } else {
                             message = "Надсилання не підтверджено. Подія залишається в черзі; перевірте мережу та прив’язку."
                         }
+                    }
+                    if let remaining = try? queue.pendingCount() {
+                        message += " Подій у черзі: \(remaining)."
                     }
                     self.status.set(.single(message))
                 }
