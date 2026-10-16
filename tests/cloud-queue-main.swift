@@ -8,16 +8,22 @@ import Foundation
         let a = try TraceFoxCloudArchivePayload(identity: identity, text: "a", date: 100, event: .message)
         let b = try TraceFoxCloudArchivePayload(identity: identity, text: "b", date: 100, event: .edited)
         let queue = try TraceFoxCloudArchiveQueue(root: root.appendingPathComponent("a"), maxEntries: 2)
+        let emptyCount = try queue.pendingCount()
+        precondition(emptyCount == 0)
         let firstId = try queue.enqueue(a)
         let duplicateId = try queue.enqueue(a)
         precondition(firstId == duplicateId)
         let secondId = try queue.enqueue(b)
+        let queuedCount = try queue.pendingCount()
+        precondition(queuedCount == 2) // adjacent duplicates must not inflate the UI backlog
         do { _ = try queue.enqueue(a); fatalError("Quota bypassed") } catch {}
         do { try queue.acknowledge(secondId); fatalError("Out-of-order acknowledgement accepted") } catch {}
         let reopened = try TraceFoxCloudArchiveQueue(root: root.appendingPathComponent("a"), maxEntries: 2)
         let first = try reopened.first()
         precondition(first?.id == firstId && first?.payload == a)
         try reopened.acknowledge(firstId)
+        let acknowledgedCount = try queue.pendingCount()
+        precondition(acknowledgedCount == 1) // another instance must see the persisted acknowledgement
         let next = try reopened.first()
         precondition(next?.id == secondId)
         let thirdId = try reopened.enqueue(a) // a -> b -> a must not lose the last edit.
@@ -27,6 +33,7 @@ import Foundation
         precondition(foreignFirst == nil)
         try Data("broken".utf8).write(to: root.appendingPathComponent("a/pending.json"))
         do { _ = try reopened.first(); fatalError("Corrupt queue silently reset") } catch {}
+        do { _ = try reopened.pendingCount(); fatalError("Corrupt queue displayed as empty") } catch {}
         let writerA = try TraceFoxCloudArchiveQueue(root: root.appendingPathComponent("concurrent"))
         let writerB = try TraceFoxCloudArchiveQueue(root: root.appendingPathComponent("concurrent"))
         let errorLock = NSLock()
