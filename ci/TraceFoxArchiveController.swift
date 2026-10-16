@@ -13,7 +13,7 @@ private enum TraceFoxArchiveSection: Int32, SGItemListSection { case messages }
 private typealias ArchiveEntry = SGItemListUIEntry<TraceFoxArchiveSection, Int, Int, Int, Int, Int>
 
 public func traceFoxArchiveController(context: AccountContext) -> ViewController {
-    let recordsPromise = Promise<[TraceFoxArchiveRecord]>()
+    let recordsPromise = Promise<([TraceFoxArchiveRecord], Bool)>()
     var currentRecords: [TraceFoxArchiveRecord] = []
     var shareImpl: ((TraceFoxArchiveRecord) -> Void)?
     let arguments = SGItemListArguments<Int, Int, Int, Int, Int>(context: context, action: { index in
@@ -21,18 +21,25 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
         shareImpl?(currentRecords[index])
     })
     DispatchQueue(label: "tracefox.archive.browser").async {
-        let records = (try? TraceFoxLocalArchive.store(mediaBox: context.account.postbox.mediaBox).records()) ?? []
-        recordsPromise.set(.single(records))
+        do {
+            let records = try TraceFoxLocalArchive.store(mediaBox: context.account.postbox.mediaBox).records()
+            recordsPromise.set(.single((records, false)))
+        } catch {
+            recordsPromise.set(.single(([], true)))
+        }
     }
     let signal = combineLatest(context.sharedContext.presentationData, recordsPromise.get())
     |> deliverOnMainQueue
-    |> map { presentationData, records -> (ItemListControllerState, (ItemListNodeState, Any)) in
+    |> map { presentationData, result -> (ItemListControllerState, (ItemListNodeState, Any)) in
+        let (records, loadFailed) = result
         currentRecords = records
         var entries: [ArchiveEntry] = [
             .header(id: 0, section: .messages, text: "Локальний архів TraceFox", badge: nil),
             .notice(id: 1, section: .messages, text: "Копії доступні лише на цьому пристрої. Показано до 100 останніх записів. Файли зберігаються лише коли були завантажені до видалення; ліміти: 64 MiB на файл, 1 GiB на архів.")
         ]
-        if records.isEmpty {
+        if loadFailed {
+            entries.append(.notice(id: 2, section: .messages, text: "Не вдалося відкрити архів. Поверніться та спробуйте ще раз."))
+        } else if records.isEmpty {
             entries.append(.notice(id: 2, section: .messages, text: "Збережених копій поки немає."))
         }
         let formatter = DateFormatter()

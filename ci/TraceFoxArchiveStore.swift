@@ -110,9 +110,12 @@ public final class TraceFoxArchiveStore {
         lock.lock(); defer { lock.unlock() }
         var records: [TraceFoxArchiveRecord] = []
         for item in try manager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) where item.pathExtension == "json" {
-            let path = try file(item.lastPathComponent)
-            let data = try Data(contentsOf: path)
-            guard data.count <= 1024 * 1024 else { continue }
+            guard let path = try? file(item.lastPathComponent),
+                  let attributes = try? manager.attributesOfItem(atPath: path.path),
+                  attributes[.type] as? FileAttributeType == .typeRegular,
+                  let size = (attributes[.size] as? NSNumber)?.int64Value,
+                  size <= 1024 * 1024,
+                  let data = try? Data(contentsOf: path), data.count <= 1024 * 1024 else { continue }
             if let value = try? JSONDecoder().decode(TraceFoxArchiveRecord.self, from: data) { records.append(value) }
         }
         return Array(records.sorted {
@@ -125,6 +128,11 @@ public final class TraceFoxArchiveStore {
         lock.lock(); defer { lock.unlock() }
         let path = try file("\(peer)_\(namespace)_\(message).json")
         guard manager.fileExists(atPath: path.path) else { return nil }
+        let attributes = try manager.attributesOfItem(atPath: path.path)
+        guard attributes[.type] as? FileAttributeType == .typeRegular,
+              let size = (attributes[.size] as? NSNumber)?.int64Value, size <= 1024 * 1024 else {
+            throw CocoaError(.fileReadTooLarge)
+        }
         return try JSONDecoder().decode(TraceFoxArchiveRecord.self, from: Data(contentsOf: path))
     }
 

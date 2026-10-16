@@ -13,7 +13,7 @@ jobs:
           persist-credentials: false
       - name: Parse staged native privacy sources
         run: |
-          swiftc -frontend -parse ci/TraceFoxPrivacyControl.swift ci/TraceFoxPrivacyController.swift
+          swiftc -frontend -parse ci/TraceFoxPrivacyControl.swift ci/TraceFoxPrivacyController.swift ci/TraceFoxArchiveController.swift
       - name: Compile and test independent archive storage
         run: |
           swiftc ci/TraceFoxArchiveStore.swift tests/archive-store-main.swift -o "$RUNNER_TEMP/archive-store-test"

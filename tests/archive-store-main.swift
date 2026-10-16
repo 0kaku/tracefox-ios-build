@@ -77,6 +77,13 @@ import Foundation
         precondition(manager.fileExists(atPath: rollbackSource.path))
         let afterRollback = try quota.records()
         precondition(afterRollback.count == 1 && afterRollback[0].text == small.text)
+        let quotaRoot = folder.appendingPathComponent("quota")
+        try Data("not json".utf8).write(to: quotaRoot.appendingPathComponent("bad.json"))
+        try Data(repeating: 32, count: 1024 * 1024 + 1).write(to: quotaRoot.appendingPathComponent("9_0_9.json"))
+        try manager.createSymbolicLink(at: quotaRoot.appendingPathComponent("escape.json"), withDestinationURL: outside)
+        let resilient = try quota.records()
+        precondition(resilient.count == 1 && resilient[0].text == small.text)
+        do { _ = try quota.record(peer: 9, namespace: 0, message: 9); fatalError("Oversized record read") } catch {}
         print("PASS: independent media, persistence, signed IDs, owner isolation, path guards and text-record quota")
     }
 
