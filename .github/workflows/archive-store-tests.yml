@@ -22,6 +22,10 @@ jobs:
         run: |
           swiftc ci/TraceFoxBotLinkProtocol.swift ci/TraceFoxBotCredentialStore.swift tests/bot-keychain-main.swift -o "$RUNNER_TEMP/bot-keychain-test"
           "$RUNNER_TEMP/bot-keychain-test"
+      - name: Test account-bound pairing attempts without sending messages
+        run: |
+          swiftc ci/TraceFoxBotLinkProtocol.swift ci/TraceFoxBotPairingAttempt.swift tests/bot-pairing-main.swift -o "$RUNNER_TEMP/bot-pairing-test"
+          "$RUNNER_TEMP/bot-pairing-test"
       - name: Compile and test independent archive storage
         run: |
           swiftc ci/TraceFoxArchiveStore.swift tests/archive-store-main.swift -o "$RUNNER_TEMP/archive-store-test"
