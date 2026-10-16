@@ -4,6 +4,8 @@ import os
 import re
 from pathlib import Path
 from tracefox_temporary_media import temporary_media_changes
+from tracefox_privacy_hooks import privacy_presence_typing_changes
+from tracefox_read_hooks import privacy_read_changes
 from urllib.parse import urlparse
 
 
@@ -67,9 +69,14 @@ def integration_changes(source):
     changes = {path: (original, modified)}
     recipe = Path(__file__).resolve().parent
     overlays = {
+        'TraceFoxBotLinkProtocol.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxBotLinkProtocol.swift',
         'TraceFoxArchiveStore.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxArchiveStore.swift',
         'TraceFoxLocalArchive.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxLocalArchive.swift',
         'TraceFoxArchiveController.swift': 'Swiftgram/SGSettingsUI/Sources/TraceFoxArchiveController.swift',
+        'TraceFoxPrivacyPolicy.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxPrivacyPolicy.swift',
+        'TraceFoxPrivacyRuntime.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxPrivacyRuntime.swift',
+        'TraceFoxPrivacyControl.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxPrivacyControl.swift',
+        'TraceFoxPrivacyController.swift': 'Swiftgram/SGSettingsUI/Sources/TraceFoxPrivacyController.swift',
     }
     for name, target in overlays.items():
         target_path = source / target
@@ -94,4 +101,6 @@ def integration_changes(source):
         '                TraceFoxLocalArchive.captureTextEdit(transaction: transaction, mediaBox: mediaBox, id: id, updatedText: message.text, updatedHasMedia: !message.media.isEmpty)\n'
         '                var generatedEvent:')
     changes[edit_file] = (original, modified)
+    changes.update(privacy_presence_typing_changes(source))
+    changes.update(privacy_read_changes(source, changes))
     return changes

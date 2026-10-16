@@ -184,6 +184,10 @@ def compile_app(source, output, build_number):
                       local_archive_scope='deletion, read and native timer expiry hooks; completed local media only',
                       edit_history=login_enabled(), edit_history_scope='plain text only; 100 prior versions / 512 KiB',
                       temporary_media_expiry_hooks=login_enabled(), local_archive_browser=login_enabled())
+        report.update(privacy_native_hooks=login_enabled(), privacy_control=login_enabled(),
+                      privacy_screen_compiled=login_enabled(), privacy_settings_navigation=False,
+                      privacy_transport_device_verified=False,
+                      archive_total_quota_bytes=1024 * 1024 * 1024)
         digest = hashlib.sha256()
         with target.open("rb") as stream:
             for chunk in iter(lambda: stream.read(1024 * 1024), b""):
