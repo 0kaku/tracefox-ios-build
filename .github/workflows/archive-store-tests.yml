@@ -26,6 +26,10 @@ jobs:
         run: |
           swiftc ci/TraceFoxBotLinkProtocol.swift ci/TraceFoxBotPairingAttempt.swift tests/bot-pairing-main.swift -o "$RUNNER_TEMP/bot-pairing-test"
           "$RUNNER_TEMP/bot-pairing-test"
+      - name: Test bot claim HTTP client with URLProtocol fixtures
+        run: |
+          swiftc ci/TraceFoxBotLinkProtocol.swift ci/TraceFoxBotPairingAttempt.swift ci/TraceFoxBotLinkClient.swift tests/bot-http-main.swift -o "$RUNNER_TEMP/bot-http-test"
+          "$RUNNER_TEMP/bot-http-test"
       - name: Compile and test independent archive storage
         run: |
           swiftc ci/TraceFoxArchiveStore.swift tests/archive-store-main.swift -o "$RUNNER_TEMP/archive-store-test"
