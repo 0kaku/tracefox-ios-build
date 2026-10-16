@@ -21,7 +21,14 @@ jobs:
       - name: Test cloud archive identity mapping without uploads
         run: |
           swiftc ci/TraceFoxCloudArchiveIdentity.swift ci/TraceFoxCloudArchivePayload.swift tests/cloud-identity-main.swift -o "$RUNNER_TEMP/cloud-identity-test"
-          "$RUNNER_TEMP/cloud-identity-test"
+          TRACEFOX_PAYLOAD_FIXTURE="$RUNNER_TEMP/cloud-payload-fixtures.json" "$RUNNER_TEMP/cloud-identity-test"
+      - name: Upload synthetic Swift payloads for backend contract validation
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: cloud-payload-fixtures-${{ github.run_id }}
+          path: ${{ runner.temp }}/cloud-payload-fixtures.json
+          retention-days: 7
+          if-no-files-found: error
       - name: Test account-scoped Keychain with synthetic credentials
         run: |
           swiftc ci/TraceFoxBotLinkProtocol.swift ci/TraceFoxBotCredentialStore.swift tests/bot-keychain-main.swift -o "$RUNNER_TEMP/bot-keychain-test"

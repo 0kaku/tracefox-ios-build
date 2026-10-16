@@ -27,6 +27,11 @@ import Foundation
         }
         do { _ = try TraceFoxCloudArchivePayload(identity: user, text: "", date: 0, event: .message); fatalError("Invalid date accepted") } catch {}
         do { _ = try TraceFoxCloudArchivePayload(identity: user, text: "", date: 100, ttlSeconds: -1, event: .message); fatalError("Invalid TTL accepted") } catch {}
+        if let path = ProcessInfo.processInfo.environment["TRACEFOX_PAYLOAD_FIXTURE"] {
+            let plain = try TraceFoxCloudArchivePayload(identity: user, text: "plain", date: 100, event: .message)
+            let combining = try TraceFoxCloudArchivePayload(identity: group, text: String(repeating: "e\u{301}", count: 8000), date: 100, ttlSeconds: 0, event: .edited)
+            try JSONEncoder().encode([payload, plain, combining]).write(to: URL(fileURLWithPath: path))
+        }
         print("PASS: Android-compatible cloud user/group/channel IDs; secret/local/scheduled/overflow rejection; no upload")
     }
 }
