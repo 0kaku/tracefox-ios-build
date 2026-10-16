@@ -9,6 +9,7 @@ final class TraceFoxArchiveCloudAction {
     let status = Promise<String>()
     private let context: AccountContext
     private let observation = MetaDisposable()
+    private let workQueue = DispatchQueue(label: "tracefox.archive.cloud.action")
     private var sender: TraceFoxCloudArchiveSender?
     private var client: TraceFoxBotLinkClient?
     private var active = false
@@ -20,17 +21,29 @@ final class TraceFoxArchiveCloudAction {
         status.set(.single("Хмарне надсилання тут передає лише текст вибраної копії. Файли залишаються локальними."))
         observation.set((context.sharedContext.activeAccountsWithInfo |> deliverOnMainQueue).start(next: { [weak self] view in
             guard let self = self else { return }
-            self.active = view.primary == context.account.id && view.accounts.contains(where: { $0.account.id == context.account.id })
-            if !self.active { self.cancel() }
+            let active = view.primary == context.account.id && view.accounts.contains(where: { $0.account.id == context.account.id })
+            self.workQueue.async { [weak self] in
+                guard let self = self else { return }
+                self.active = active
+                if !active { self.cancelOnQueue() }
+            }
         }))
     }
     deinit { observation.dispose(); sender?.cancel() }
     func cancel() {
+        workQueue.async { [weak self] in self?.cancelOnQueue() }
+    }
+    private func cancelOnQueue() {
+        let wasBusy = busy
         generation &+= 1
         sender?.cancel(); sender = nil; client = nil; busy = false
+        if wasBusy { status.set(.single("Надсилання скасовано. Непідтверджені події залишаються в черзі.")) }
     }
 
     func send(record: TraceFoxArchiveRecord? = nil) {
+        workQueue.async { [weak self] in self?.sendOnQueue(record: record) }
+    }
+    private func sendOnQueue(record: TraceFoxArchiveRecord?) {
         guard active else { status.set(.single("Відкрийте архів з активного акаунта.")); return }
         guard !busy else { return }
         do {
@@ -58,7 +71,7 @@ final class TraceFoxArchiveCloudAction {
             let selectedId = selected
             status.set(.single("Надсилання наступної текстової події черги…"))
             try sender.sendNext(credentials: credentials) { [weak self] result in
-                DispatchQueue.main.async { [weak self] in
+                self?.workQueue.async { [weak self] in
                     guard let self = self, self.generation == token, self.active else { return }
                     self.busy = false; self.sender = nil; self.client = nil
                     let message: String
