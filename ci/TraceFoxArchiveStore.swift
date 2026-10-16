@@ -13,13 +13,15 @@ public struct TraceFoxArchiveRecord: Codable {
     public let files: [String]
     public let ttlSeconds: Int32?
     public let previousTexts: [String]?
+    public let globallyUniqueId: Int64?
 
     public init(peer: Int64, namespace: Int32, message: Int32, timestamp: Int32,
-                text: String, deleted: Bool, files: [String], ttlSeconds: Int32? = nil, previousTexts: [String]? = nil) {
+                text: String, deleted: Bool, files: [String], ttlSeconds: Int32? = nil, previousTexts: [String]? = nil, globallyUniqueId: Int64? = nil) {
         self.peer = peer; self.namespace = namespace; self.message = message
         self.timestamp = timestamp; self.text = text; self.deleted = deleted; self.files = files
         self.ttlSeconds = ttlSeconds
         self.previousTexts = previousTexts
+        self.globallyUniqueId = globallyUniqueId
     }
     fileprivate var key: String { return "\(peer)_\(namespace)_\(message)" }
 }
@@ -137,7 +139,7 @@ public final class TraceFoxArchiveStore {
     }
 
     public func saveTextEdit(peer: Int64, namespace: Int32, message: Int32, timestamp: Int32,
-                             previousText: String, updatedText: String) throws {
+                             previousText: String, updatedText: String, globallyUniqueId: Int64? = nil) throws {
         lock.lock(); defer { lock.unlock() }
         guard previousText != updatedText else { return }
         let existing = try record(peer: peer, namespace: namespace, message: message)
@@ -149,7 +151,8 @@ public final class TraceFoxArchiveStore {
         }
         try save(TraceFoxArchiveRecord(peer: peer, namespace: namespace, message: message,
             timestamp: timestamp, text: updatedText, deleted: existing?.deleted ?? false,
-            files: [], ttlSeconds: existing?.ttlSeconds, previousTexts: history))
+            files: [], ttlSeconds: existing?.ttlSeconds, previousTexts: history,
+            globallyUniqueId: globallyUniqueId ?? existing?.globallyUniqueId))
     }
 
     public func mediaURL(name: String) throws -> URL {

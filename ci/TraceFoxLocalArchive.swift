@@ -32,7 +32,8 @@ public enum TraceFoxLocalArchive {
         guard !updatedHasMedia, let message = transaction.getMessage(id), message.media.isEmpty,
               let archive = try? store(mediaBox: mediaBox) else { return }
         try? archive.saveTextEdit(peer: id.peerId.toInt64(), namespace: id.namespace, message: id.id,
-            timestamp: message.timestamp, previousText: message.text, updatedText: updatedText)
+            timestamp: message.timestamp, previousText: message.text, updatedText: updatedText,
+            globallyUniqueId: message.globallyUniqueId)
     }
 
     private static func capture(transaction: Transaction, mediaBox: MediaBox, ids: [MessageId], deleted: Bool) {
@@ -44,7 +45,8 @@ public enum TraceFoxLocalArchive {
                 if deleted && !previous.deleted {
                     try? archive.save(TraceFoxArchiveRecord(peer: previous.peer, namespace: previous.namespace,
                         message: previous.message, timestamp: previous.timestamp, text: previous.text,
-                        deleted: true, files: previous.files, ttlSeconds: previous.ttlSeconds, previousTexts: previous.previousTexts))
+                        deleted: true, files: previous.files, ttlSeconds: previous.ttlSeconds, previousTexts: previous.previousTexts,
+                        globallyUniqueId: previous.globallyUniqueId))
                 }
                 continue
             }
@@ -85,7 +87,8 @@ public enum TraceFoxLocalArchive {
                 try archive.save(TraceFoxArchiveRecord(peer: id.peerId.toInt64(), namespace: id.namespace,
                     message: id.id, timestamp: message.timestamp, text: message.text,
                     deleted: deleted || (previous?.deleted ?? false), files: names,
-                    ttlSeconds: ttl ?? previous?.ttlSeconds, previousTexts: previous?.previousTexts))
+                    ttlSeconds: ttl ?? previous?.ttlSeconds, previousTexts: previous?.previousTexts,
+                    globallyUniqueId: message.globallyUniqueId ?? previous?.globallyUniqueId))
             } catch {
                 archive.discardUncommitted(names)
             }

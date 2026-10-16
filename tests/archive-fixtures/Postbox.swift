@@ -21,8 +21,10 @@ public struct Message {
     public let text: String
     public let media: [Media]
     public let attributes: [Any]
-    public init(timestamp: Int32, text: String, media: [Media], attributes: [Any]) {
+    public let globallyUniqueId: Int64?
+    public init(timestamp: Int32, text: String, media: [Media], attributes: [Any], globallyUniqueId: Int64? = nil) {
         self.timestamp = timestamp; self.text = text; self.media = media; self.attributes = attributes
+        self.globallyUniqueId = globallyUniqueId
     }
 }
 public final class Transaction {

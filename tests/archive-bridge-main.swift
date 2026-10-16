@@ -15,7 +15,7 @@ import Postbox
             FixtureImageRepresentation(dimensions: FixtureDimensions(width: 1200, height: 1200), resource: FixtureResource(fixtureKey: "large-missing"))
         ])
         tx.messages[id] = Message(timestamp: 10, text: "secret photo", media: [image],
-            attributes: [AutoclearTimeoutMessageAttribute(30), AutoremoveTimeoutMessageAttribute(Int32.max)])
+            attributes: [AutoclearTimeoutMessageAttribute(30), AutoremoveTimeoutMessageAttribute(Int32.max)], globallyUniqueId: Int64.min + 77)
         TraceFoxLocalArchive.captureAvailable(transaction: tx, mediaBox: box, ids: [id])
         let store = try TraceFoxLocalArchive.store(mediaBox: box)
         let metadata = try store.record(peer: id.peerId.toInt64(), namespace: id.namespace, message: id.id)
@@ -45,6 +45,7 @@ import Postbox
         TraceFoxLocalArchive.captureDeleted(transaction: tx, mediaBox: box, ids: [id])
         let deleted = try store.record(peer: id.peerId.toInt64(), namespace: id.namespace, message: id.id)!
         precondition(deleted.deleted && deleted.files == recovered.files && deleted.text == "secret photo")
+        precondition(deleted.globallyUniqueId == Int64.min + 77)
         let retained = try Data(contentsOf: store.mediaURL(name: deleted.files[0]))
         precondition(retained == bytes)
         let other = try TraceFoxLocalArchive.store(mediaBox: foreign).records()

@@ -27,6 +27,7 @@ import Foundation
         let old = try JSONDecoder().decode(TraceFoxArchiveRecord.self, from: legacy)
         precondition(old.ttlSeconds == nil)
         precondition(old.previousTexts == nil)
+        precondition(old.globallyUniqueId == nil)
         for index in 0..<105 {
             try first.saveTextEdit(peer: 42, namespace: 0, message: 55, timestamp: 20,
                 previousText: "v\(index)", updatedText: "v\(index + 1)")
