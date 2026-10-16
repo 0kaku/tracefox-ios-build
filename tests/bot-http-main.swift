@@ -39,6 +39,23 @@ private final class StubProtocol: URLProtocol {
         StubProtocol.status = 200
         StubProtocol.body = Data(repeating: 32, count: 4097)
         if case .failure = try poll() {} else { fatalError("Oversized response accepted") }
+        let store = TraceFoxBotCredentialStore(service: "one.tracefox.ci.coordinator." + UUID().uuidString)
+        defer { try? store.remove(ownerId: 42) }
+        let coordinator = TraceFoxBotPairingCoordinator(client: client, store: store)
+        _ = try coordinator.begin(ownerId: 42)
+        coordinator.cancel()
+        do { try coordinator.poll { _ in fatalError("Cancelled attempt completed") }; fatalError("Cancelled poll accepted") } catch {}
+        _ = try coordinator.begin(ownerId: 42)
+        StubProtocol.body = try JSONSerialization.data(withJSONObject: ["ready": true, "owner_id": 42, "token": String(repeating: "b", count: 43), "archive_available": true])
+        let saved = DispatchSemaphore(value: 0)
+        try coordinator.poll { result in
+            if case let .success(value?) = result { precondition(value.ownerId == 42) } else { fatalError("Coordinator failed") }
+            saved.signal()
+        }
+        precondition(saved.wait(timeout: .now() + 5) == .success)
+        let stored = try store.read(ownerId: 42)
+        precondition(stored?.token == String(repeating: "b", count: 43))
         print("PASS: actual URLSession claim client with URLProtocol fixtures; pending/success/foreign owner/HTTP error/size limits; no live network")
+        print("PASS: coordinator explicit begin/cancel, validated claim-to-Keychain flow; synthetic account only")
     }
 }
