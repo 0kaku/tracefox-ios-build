@@ -26,17 +26,17 @@ public enum TraceFoxLocalArchive {
     }
 
     private static func lifetime(_ message: Message) -> Int32? {
-    var ttl: Int32?
-    for attribute in message.attributes {
-        let candidate: Int32?
-        if let value = attribute as? AutoremoveTimeoutMessageAttribute { candidate = value.timeout }
-        else if let value = attribute as? AutoclearTimeoutMessageAttribute { candidate = value.timeout }
-        else { candidate = nil }
-        if let candidate = candidate, candidate > 0 {
-            if candidate == viewOnceTimeout { ttl = candidate; break }
-            if ttl == nil { ttl = candidate }
+        var ttl: Int32?
+        for attribute in message.attributes {
+            let candidate: Int32?
+            if let value = attribute as? AutoremoveTimeoutMessageAttribute { candidate = value.timeout }
+            else if let value = attribute as? AutoclearTimeoutMessageAttribute { candidate = value.timeout }
+            else { candidate = nil }
+            if let candidate = candidate, candidate > 0 {
+                if candidate == viewOnceTimeout { ttl = candidate; break }
+                if ttl == nil { ttl = candidate }
+            }
         }
-    }
         return ttl
     }
 
