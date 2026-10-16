@@ -14,6 +14,10 @@ jobs:
       - name: Parse staged native privacy sources
         run: |
           swiftc -frontend -parse ci/TraceFoxPrivacyControl.swift ci/TraceFoxPrivacyController.swift ci/TraceFoxArchiveController.swift
+      - name: Test bot-link protocol boundaries without network access
+        run: |
+          swiftc ci/TraceFoxBotLinkProtocol.swift tests/bot-link-main.swift -o "$RUNNER_TEMP/bot-link-test"
+          "$RUNNER_TEMP/bot-link-test"
       - name: Compile and test independent archive storage
         run: |
           swiftc ci/TraceFoxArchiveStore.swift tests/archive-store-main.swift -o "$RUNNER_TEMP/archive-store-test"
