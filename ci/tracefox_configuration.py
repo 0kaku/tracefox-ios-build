@@ -43,15 +43,16 @@ def integration_changes(source):
     replacements = {
         'import SGAPIToken': 'import SGAPIToken\nimport SGConfig',
         'private enum SGDisclosureLink: String {':
-            'private enum SGDisclosureLink: String {\n    case tracefoxBot\n    case tracefoxArchive\n    case tracefoxLocalArchive\n    case tracefoxPrivacy\n    case tracefoxPairing',
+            'private enum SGDisclosureLink: String {\n    case tracefoxBot\n    case tracefoxArchive\n    case tracefoxLocalArchive\n    case tracefoxPrivacy\n    case tracefoxPairing\n    case tracefoxUpdates',
         '    return filterSGItemListUIEntrires(entries: entries, by: state.searchQuery)':
             '    entries.append(.header(id: id.count, section: .other, text: "TraceFox", badge: nil))\n'
             '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxBot, text: "Бот TraceFox"))\n'
             '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxArchive, text: "Хмарний архів TraceFox"))\n'
             '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxLocalArchive, text: "Локальний архів TraceFox"))\n'
             '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxPrivacy, text: "Приватність TraceFox"))\n'
-            '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxPairing, text: "Прив’язка акаунта до бота"))\n'
-            '    entries.append(.notice(id: id.count, section: .other, text: "Локальні копії, параметри приватності та прив’язка акаунта. Синхронізацію локального архіву з хмарою ще не підключено."))\n'
+            '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxPairing, text: "Підключення до TraceFox"))\n'
+            '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxUpdates, text: "Оновлення TraceFox"))\n'
+            '    entries.append(.notice(id: id.count, section: .other, text: "Локальний архів і параметри приватності. Акаунт підключається автоматично; резервне копіювання працює без перемикача під час роботи застосунку."))\n'
             '    return filterSGItemListUIEntrires(entries: entries, by: state.searchQuery)',
         '    }, openDisclosureLink: { link in\n        switch (link) {':
             '    }, openDisclosureLink: { link in\n        switch (link) {\n'
@@ -64,7 +65,9 @@ def integration_changes(source):
             '            case .tracefoxPrivacy:\n'
             '                pushControllerImpl?(traceFoxPrivacyController(context: context))\n'
             '            case .tracefoxPairing:\n'
-            '                pushControllerImpl?(traceFoxBotPairingController(context: context))',
+            '                pushControllerImpl?(traceFoxBotPairingController(context: context))\n'
+            '            case .tracefoxUpdates:\n'
+            '                pushControllerImpl?(traceFoxUpdatesController(context: context))',
         'title: .text("Swiftgram")': 'title: .text("TraceFox")',
     }
     modified = original
@@ -75,6 +78,12 @@ def integration_changes(source):
     changes = {path: (original, modified)}
     recipe = Path(__file__).resolve().parent
     overlays = {
+        'TraceFoxArchiveCategory.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxArchiveCategory.swift',
+        'TraceFoxBackupLedger.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxBackupLedger.swift',
+        'TraceFoxAutomaticBackup.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxAutomaticBackup.swift',
+        'TraceFoxAutomaticBackupConfiguration.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxAutomaticBackupConfiguration.swift',
+        'TraceFoxUpdates.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxUpdates.swift',
+        'TraceFoxUpdatesController.swift': 'Swiftgram/SGSettingsUI/Sources/TraceFoxUpdatesController.swift',
         'TraceFoxArchiveCloudAction.swift': 'Swiftgram/SGSettingsUI/Sources/TraceFoxArchiveCloudAction.swift',
         'TraceFoxCloudArchiveBridge.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxCloudArchiveBridge.swift',
         'TraceFoxCloudArchiveSender.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxCloudArchiveSender.swift',
@@ -99,7 +108,24 @@ def integration_changes(source):
         target_path = source / target
         if target_path.exists():
             raise RuntimeError('Unexpected existing TraceFox overlay: ' + target)
-        changes[target_path] = (None, (recipe / name).read_text(encoding='utf-8'))
+        contents = (recipe / name).read_text(encoding='utf-8')
+        if name == 'TraceFoxAutomaticBackupConfiguration.swift':
+            public = json.loads(login_configuration({})['sg_config'])
+            contents = contents.replace('"__TRACEFOX_SERVER__"', json.dumps(public['api_url'])).replace('"__TRACEFOX_BOT__"', json.dumps(public['bot_username']))
+        changes[target_path] = (None, contents)
+    context_file = source / 'submodules/TelegramUI/Sources/AccountContext.swift'
+    context_original = context_file.read_text(encoding='utf-8')
+    property_anchor = '    public let sharedContextImpl: SharedAccountContextImpl'
+    init_anchor = '    }\n    \n    deinit {\n        self.limitsConfigurationDisposable?.dispose()'
+    if context_original.count(property_anchor) != 1 or context_original.count(init_anchor) != 1:
+        raise RuntimeError('Native account lifecycle anchor changed')
+    context_modified = context_original.replace(property_anchor, '    private var traceFoxBackup: TraceFoxAutomaticBackup?\n' + property_anchor)
+    context_modified = context_modified.replace(init_anchor,
+        '        if !temp && Bundle.main.bundleURL.pathExtension == "app" {\n'
+        '            self.traceFoxBackup = try? TraceFoxAutomaticBackup(account: account)\n'
+        '        }\n' + init_anchor)
+    context_modified = context_modified.replace('        self.limitsConfigurationDisposable?.dispose()', '        self.traceFoxBackup?.stop()\n        self.limitsConfigurationDisposable?.dispose()', 1)
+    changes[context_file] = (context_original, context_modified)
     deletion = source / 'submodules/TelegramCore/Sources/TelegramEngine/Messages/DeleteMessages.swift'
     original = deletion.read_text(encoding='utf-8')
     signature = 'public func _internal_deleteMessages(transaction: Transaction, mediaBox: MediaBox, ids: [MessageId], deleteMedia: Bool = true, manualAddMessageThreadStatsDifference: ((MessageThreadKey, Int, Int) -> Void)? = nil) {\n'
@@ -124,9 +150,9 @@ def integration_changes(source):
     original = cleanup.read_text(encoding='utf-8')
     anchor = '    Logger.shared.log("AccountManager", "logoutFromAccount \\(id)")\n    return accountManager.transaction { transaction -> Void in\n'
     if original.count(anchor) != 1: raise RuntimeError('Logout account-record entry changed')
-    modified = original.replace(anchor, anchor + '        try? TraceFoxBotCredentialStore().removeAccountRecord(id.int64)\n')
+    modified = original.replace(anchor, anchor + '        TraceFoxAutomaticBackup.stopAccount(id.int64)\n        try? TraceFoxBotCredentialStore().removeAccountRecord(id.int64)\n')
     anchor = '    return accountWithId(accountManager: accountManager, networkArguments: networkArguments, id: id, encryptionParameters: encryptionParameters, supplementary: true, isSupportUser: isSupportUser, rootPath: rootPath, beginWithTestingEnvironment: beginWithTestingEnvironment, backupData: nil, auxiliaryMethods: auxiliaryMethods)'
     if modified.count(anchor) != 1: raise RuntimeError('Account cleanup authorization entry changed')
-    modified = modified.replace(anchor, '    try? TraceFoxBotCredentialStore().removeAccountRecord(id.int64)\n' + anchor)
+    modified = modified.replace(anchor, '    TraceFoxAutomaticBackup.stopAccount(id.int64)\n    try? TraceFoxBotCredentialStore().removeAccountRecord(id.int64)\n' + anchor)
     changes[cleanup] = (original, modified)
     return changes

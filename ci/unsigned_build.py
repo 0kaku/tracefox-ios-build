@@ -176,8 +176,8 @@ def compile_app(source, output, build_number):
         report = verify_ipa(ipa, configuration()['bundle_id'])
         target = output / "TraceFox-iOS-build-test-unsigned.ipa"
         shutil.copyfile(ipa, target)
-        report.update(source_commit=COMMIT, build_number=build_number, login_enabled=login_enabled(),
-                      tracefox_bot_integrated=False, baseline_only=not login_enabled(), darkgram_features_integrated=False,
+        report.update(automatic_bot_connection=login_enabled(), automatic_backup=login_enabled(), automatic_backup_scope='Supported cloud records and first retained file; secret records local; foreground/resume worker', automatic_backup_device_verified=False, archive_categories=login_enabled(), source_commit=COMMIT, build_number=build_number, login_enabled=login_enabled(),
+                      tracefox_bot_integrated=login_enabled(), baseline_only=not login_enabled(), darkgram_features_integrated=False,
                       excluded_source_files=sum(ORPHAN_SOURCES.values(), []), size=target.stat().st_size)
         report.update(tracefox_settings_integrated=login_enabled(), cloud_archive_bot_link=login_enabled(),
                       device_tested=False, signing_required=True, local_media_archive=login_enabled(), ghost_mode=False,

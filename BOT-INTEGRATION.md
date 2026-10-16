@@ -265,3 +265,6 @@ backend/fixture are unavailable and does not claim physical iPhone validation.
 2026-10-16: Manual export now explains HTTP 401 as an invalid pairing and directs the user to pair this account again. The pending queue is retained; this callback does not delete credentials that may have been replaced by a concurrent pairing. This UI refinement awaits native compilation with the next accumulated candidate.
 
 2026-10-16: Added fake-transport sender regression for HTTP 401 and 403: each error must reach the caller without removing the durable head; the same owner with renewed synthetic credentials can retry and remove it only after positive acknowledgement. Standalone verification includes the latest invalid-pairing UI message; no real account or backend request is made.
+
+
+User-requested Android parity candidate supersedes manual pairing/export navigation: automatic context-owned authenticated pairing, archive scan and first retained cloud file upload with durable acknowledgement ledger. See ANDROID-PARITY.md for exact limits and separate backend deployment dependency.

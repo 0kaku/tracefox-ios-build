@@ -60,4 +60,23 @@ class TraceFoxLoginTest(unittest.TestCase):
             self.assertTrue(added)
 
 
+    def test_automatic_backup_lifecycle_and_settings(self):
+        source = Path(r'D:\TraceFoxBuild\tracefox-darkgram-ios')
+        if not source.exists(): self.skipTest('Local pinned source unavailable')
+        with patch.dict(os.environ, self.values): changes = unsigned_source_changes(source)
+        context = changes[source/'submodules/TelegramUI/Sources/AccountContext.swift'][1]
+        self.assertIn('!temp && Bundle.main.bundleURL.pathExtension == "app"', context)
+        self.assertIn('TraceFoxAutomaticBackup(account: account)', context)
+        self.assertIn('self.traceFoxBackup?.stop()', context)
+        manager = changes[source/'submodules/TelegramCore/Sources/Account/AccountManager.swift'][1]
+        self.assertLess(manager.index('TraceFoxAutomaticBackup.stopAccount'), manager.index('TraceFoxBotCredentialStore().removeAccountRecord'))
+        config = changes[source/'submodules/TelegramCore/Sources/Swiftgram/TraceFoxAutomaticBackupConfiguration.swift'][1]
+        self.assertIn('https://archive.example.test', config)
+        self.assertIn('TraceFoxTestBot', config)
+        self.assertNotIn(self.values['TRACEFOX_API_HASH'], config)
+        pairing = changes[source/'Swiftgram/SGSettingsUI/Sources/TraceFoxBotPairingController.swift'][1]
+        self.assertNotIn('Скопіювати код', pairing)
+        self.assertNotIn('coordinator.begin', pairing)
+
+
 if __name__ == '__main__': unittest.main()

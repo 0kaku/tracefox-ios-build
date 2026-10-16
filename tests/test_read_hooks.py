@@ -39,7 +39,7 @@ class ReadHooksTest(unittest.TestCase):
         self.assertEqual(before.count('transaction.'),after.count('transaction.'))
 
     def changes(self):
-        with patch.dict(os.environ, {'TRACEFOX_ENABLE_LOGIN':'1'}):
+        with patch.dict(os.environ, {'TRACEFOX_ENABLE_LOGIN':'1','TRACEFOX_API_ID':'12345','TRACEFOX_API_HASH':'abcdef0123456789abcdef0123456789','TRACEFOX_SERVER':'https://archive.example.test','TRACEFOX_BOT':'TraceFoxTestBot'}):
             return unsigned_source_changes(SOURCE)
 
     def test_archive_precedes_local_read_suppression(self):

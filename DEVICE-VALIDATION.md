@@ -1,3 +1,5 @@
+Automatic-parity candidate: confirm bot linkage after first login without opening settings or sending a command manually, restore token after relaunch, verify cloud metadata/file upload without a switch, expire a token and verify automatic re-pair, and switch/logout during pending work. Compare the three local category tabs to deleted media, view-once media and secret chat fixtures. Earlier manual pairing/export checklist entries are historical and superseded for this candidate.
+
 # TraceFox iPhone acceptance record
 
 No physical-device checks below have passed yet. An unsigned IPA and host-fixture
@@ -43,6 +45,12 @@ isolation for settings and archives and behavior after logout.
 ## Archive checks
 
 Verify ordinary text deletion, successive text edits and deletion after an edit.
+For a timed plain-text message with no prior local archive entry, edit it before
+reading or deleting it. Confirm the first saved edit already displays its timer,
+then edit again, delete and restart: the latest text, prior versions and timer
+must remain together. This specifically covers the host-verified first-edit TTL
+fix, which is absent from native candidate 38857408262.
+
 For media, first fully download a test image/video, trigger each applicable read,
 expiry and remote-deletion path, then open the retained copy after restarting.
 Repeat in cloud and secret test chats and with one-view/timed test media.
