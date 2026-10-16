@@ -4,7 +4,7 @@ public enum TraceFoxBotLinkError: Error {
     case invalidOrigin, invalidNonce, invalidResponse, ownerMismatch
 }
 
-public struct TraceFoxBotLinkCredentials {
+public struct TraceFoxBotLinkCredentials: Codable {
     public let ownerId: Int64
     public let token: String
     public let archiveAvailable: Bool
