@@ -18,23 +18,37 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
     var currentRecords: [TraceFoxArchiveRecord] = []
     var shareImpl: ((TraceFoxArchiveRecord) -> Void)?
     var loadMoreImpl: (() -> Void)?
+    var refreshImpl: (() -> Void)?
     var loadingMore = false
     let arguments = SGItemListArguments<Int, Int, Int, Int, Int>(context: context, action: { index in
         if index == -1 { cloud.send(); return }
         if index == -2 { loadMoreImpl?(); return }
+        if index == -3 { refreshImpl?(); return }
         let recordIndex = index / 2
         guard currentRecords.indices.contains(recordIndex) else { return }
         if index % 2 == 0 { shareImpl?(currentRecords[recordIndex]) }
         else { cloud.send(record: currentRecords[recordIndex]) }
     })
-    DispatchQueue(label: "tracefox.archive.browser").async {
-        do {
-            let records = try TraceFoxLocalArchive.store(mediaBox: context.account.postbox.mediaBox).records()
-            recordsPromise.set(.single((records, false, records.count == 100)))
-        } catch {
-            recordsPromise.set(.single(([], true, false)))
+    refreshImpl = {
+        guard !loadingMore else { return }
+        loadingMore = true
+        let existing = currentRecords
+        DispatchQueue(label: "tracefox.archive.browser").async {
+            do {
+                let records = try TraceFoxLocalArchive.store(mediaBox: context.account.postbox.mediaBox).records()
+                DispatchQueue.main.async {
+                    loadingMore = false
+                    recordsPromise.set(.single((records, false, records.count == 100)))
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    loadingMore = false
+                    recordsPromise.set(.single((existing, true, !existing.isEmpty)))
+                }
+            }
         }
     }
+    refreshImpl?()
     let signal = combineLatest(context.sharedContext.presentationData, recordsPromise.get(), cloud.status.get())
     |> deliverOnMainQueue
     |> map { presentationData, result, cloudStatus -> (ItemListControllerState, (ItemListNodeState, Any)) in
@@ -45,13 +59,14 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
             .notice(id: 1, section: .messages, text: "Показано копій: \(records.count). Наступні записи можна завантажити нижче. Файли зберігаються лише коли були завантажені до видалення; ліміти: 64 MiB на файл, 1 GiB на архів.")
         ]
         if loadFailed {
-            entries.append(.notice(id: 2, section: .messages, text: records.isEmpty ? "Не вдалося відкрити архів. Поверніться та спробуйте ще раз." : "Не вдалося завантажити наступну сторінку. Уже відкриті копії збережено на екрані; спробуйте ще раз нижче."))
+            entries.append(.notice(id: 2, section: .messages, text: records.isEmpty ? "Не вдалося відкрити архів. Натисніть «Оновити список копій», щоб спробувати ще раз." : "Не вдалося оновити список або завантажити сторінку. Уже відкриті копії залишилися на екрані; спробуйте ще раз нижче."))
         } else if records.isEmpty {
             entries.append(.notice(id: 2, section: .messages, text: "Збережених копій поки немає."))
         }
         entries.append(.notice(id: 3, section: .messages, text: cloudStatus))
         entries.append(.action(id: 4, section: .messages, actionType: -1, text: "Надіслати наступну текстову подію черги", kind: .generic))
         if hasMore { entries.append(.action(id: 5, section: .messages, actionType: -2, text: "Показати наступні 100 копій", kind: .generic)) }
+        entries.append(.action(id: 6, section: .messages, actionType: -3, text: "Оновити список копій", kind: .generic))
         let formatter = DateFormatter()
         formatter.dateStyle = .short; formatter.timeStyle = .short
         for (index, record) in records.enumerated() {
