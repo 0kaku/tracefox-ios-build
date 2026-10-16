@@ -223,3 +223,45 @@ run 38849172907 compiles the actual adapter with Postbox/media API fixtures whos
 packed/unpacked IDs deliberately differ. Existing archive bridge regressions also
 run after extending fixtures with message ID components. Native compatibility and
 real capture/opt-in wiring remain pending. Prior persisted-validation tests passed.
+
+Archived-record adapter preparation: saved packed PeerId values are decoded back
+through the native PeerId initializer before cloud mapping. Deletion/edit state,
+latest text and TTL are retained in the payload. Secret/local/unsupported records
+and service/pairing content remain excluded. Host tests use explicitly synthetic
+PeerId packing and do not emulate Telegram's real bit representation. Actual
+native decode/type behavior still needs full compilation/device checks. No UI
+export action or upload is invoked by this adapter.
+
+Manual text export UI prepared: archive rows have a distinct text-to-cloud action,
+and a separate next-queued-event action. The helper reads this account record's
+Keychain credential, builds only supported cloud text payloads, enqueues durably
+and submits one FIFO head. If an earlier event was sent, the UI explicitly says
+the selected copy remains pending. No files/secret records are exported by this
+path. Account switch or screen disappearance cancels the current request; pending
+events remain. It does not start automatic/background synchronization.
+Run 38850480146 parses the new helper/controller and reruns underlying host tests;
+full native type compilation, UIKit behavior, real pairing/server and device
+acceptance are still unverified. Queue serialization currently occurs on the UI
+call path and needs performance validation before larger backlogs are supported.
+
+Manual export threading update supersedes the UI-thread disk path limitation:
+its Keychain/queue preparation, sender invocation, callbacks and mutable lifecycle
+state now run on one dedicated serial worker queue. UI calls enqueue work and
+status delivery remains through the existing main-queue list signal. Cancellation
+is ordered with prior work; already started HTTP activity cannot be recalled.
+Host syntax/underlying algorithm checks do not establish UIKit responsiveness or
+physical-device scheduling. The 205-record equal-timestamp pagination test passed
+in prior run 38850909511.
+
+Isolated backend endpoint contract passed: test_backend_swift_contract.py submits
+three actual Swift-generated JSON fixtures through the real FastAPI router using
+httpx ASGITransport, in-memory SQLite, synthetic device tokens and FakeTelegram.
+It verifies authentication, positive acknowledgement, idempotent same-owner retry,
+owner isolation, one-view/deleted metadata and invalid message-ID rejection.
+No production database, real server or Telegram calls are used; fake call/message
+lists remain empty. All 28 local tests passed. This test skips where the local
+backend/fixture are unavailable and does not claim physical iPhone validation.
+
+2026-10-16: Manual export now explains HTTP 401 as an invalid pairing and directs the user to pair this account again. The pending queue is retained; this callback does not delete credentials that may have been replaced by a concurrent pairing. This UI refinement awaits native compilation with the next accumulated candidate.
+
+2026-10-16: Added fake-transport sender regression for HTTP 401 and 403: each error must reach the caller without removing the durable head; the same owner with renewed synthetic credentials can retry and remove it only after positive acknowledgement. Standalone verification includes the latest invalid-pairing UI message; no real account or backend request is made.

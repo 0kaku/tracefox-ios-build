@@ -50,6 +50,25 @@ An unavailable or incomplete original must not be reported as successfully saved
 Check filename/playback, iPad share presentation, size-limit behavior and failure
 without damaged existing records. Do not claim expired server media recovery.
 
+## Explicit cloud export checks
+
+After a candidate containing the manual export UI compiles, pair a user-controlled
+account manually. Export a plain text record and confirm server acknowledgement,
+queue count reduction and the matching row in that owner's archive. Repeat an
+edited and deleted record and verify text, event and TTL metadata. This path sends
+no media files and excludes secret/local records.
+
+With two queued records, select the later record: the oldest event must be sent
+first and the UI must say that the selected copy remains pending. Use the explicit
+next-event action to drain it. Disconnect the network, retry, restart the app and
+confirm unacknowledged entries persist. Switch accounts or close the screen during
+a request; stale completion must not change the newly active account's UI or queue.
+Server receipt before a lost acknowledgement can lead to an at-least-once retry.
+Check expired/revoked credentials and denied access without losing queued events.
+
+Create more than 100 local archive records, including equal timestamps. Load every
+page and verify each record appears once, with earlier loaded rows retained after
+a page-load failure. Large-archive scan performance still requires device testing.
 ## Privacy checks
 
 After native compilation and navigation are enabled, verify default-off and

@@ -387,3 +387,45 @@ settings navigation for privacy and manual bot pairing, plus Keychain, status,
 logout and current-account guards. This is a changed candidate, not a duplicate.
 Standalone run 38834408132 passed syntax/host checks for the prior account-aware
 privacy screen. Final navigation and reset changes await full native validation.
+
+## Native settings integration milestone
+
+Run 38844096749 succeeded and its unsigned IPA independently verified with SHA-256
+6bb62e8e629a5c4c2b5d86e2caf2119e5891ea4a429a7fff4918aafce4c59301.
+It includes settings navigation for privacy and manual bot pairing, record-scoped
+Keychain and account lifecycle integration. Device behavior remains unverified.
+The milestone is preserved separately in status while the next candidate runs.
+Recipe 5fd41fab25bf5f62f1618271ff6defa0ec4c6248 compiles accumulated cloud
+identity/payload/queue/sender/adapter components and validation fixes; automatic
+cloud sync is still not wired/enabled. Host adapter run 38849172907 succeeded.
+
+## Staged archive pagination
+
+Archive records now accept a before cursor using timestamp plus stable record key,
+so identical timestamps cannot cause skipped/duplicate page boundaries. The UI
+appends pages of 100 off the main queue, preserves existing records on load error,
+and guards repeated load-more requests. Host run 38850909511 checks 205 equal-time
+records across three pages with no duplicate IDs and parses the changed UI.
+This still scans JSON metadata rather than using a database index; large-archive
+performance and UIKit/native integration remain unverified. It is staged after
+the active native build and is not part of the previously verified IPA.
+
+2026-10-16: Standalone Swift checks passed in run 38852169320 (recipe 4fa960a). Explicit cloud export now reports the remaining durable queue count on its worker queue. Native run 38849586897 is still active and predates this UI refinement; physical-device behavior remains unverified.
+
+2026-10-16: Archive UI now labels deleted/edited records and distinguishes a next-page load failure from an initial archive failure. Local regression suite: 28 passed. Swift checks dispatched at recipe 05995f9; native compilation and device verification pending.
+
+2026-10-16: Swift run 38852968713 passed for archive state labels and pagination failure text. Added backlog-count regressions for adjacent duplicate coalescing, cross-instance acknowledgement visibility and corrupt-queue errors; verification dispatched separately without restarting active native compilation.
+
+2026-10-16: Queue backlog regressions passed in macOS Swift run 38853381950: adjacent duplicate count, persisted acknowledgement visibility across instances and corrupt queue count failure. Native build 38849586897 remains in its compile step; no duplicate native build dispatched.
+
+2026-10-16: The native publisher now records a per-file SHA-256 manifest for the exact uploaded candidate in ios-ci-status.json. This distinguishes later local edits from the source actually compiled by each run. Publisher regression suite: 28 passed; manifest becomes available on the next authorized dispatch after active compilation finishes.
+
+2026-10-16 candidate boundary audit: exact Git blob hashes against active recipe 5fd41fa identify six changed/added build inputs: tracefox_configuration.py, TraceFoxArchiveCloudAction.swift, TraceFoxArchiveController.swift, TraceFoxArchiveStore.swift, TraceFoxCloudArchiveBridge.swift and TraceFoxCloudArchiveQueue.swift. These comprise manual text export UI, archive pagination, saved-record conversion and queue display refinements. A successful active run must not be reported as compiling these later local versions. The exact list is stored under pending_candidate_diff_from_run in ios-ci-status.json.
+
+2026-10-16: Authorization-failure/re-pair sender regression passed in run 38855559700. Archive paging now retains at most the requested page (maximum 100 decoded records), instead of accumulating every decoded archive record before sorting. The scan still reads directory entries and each eligible JSON; device latency for large archives is unverified. Existing 205 equal-timestamp pagination regression is dispatched against this implementation.
+
+2026-10-16: Bounded-memory archive page selection passed Swift run 38855996883, including 205 same-timestamp records paged 100/100/5 with no duplicates. This verifies host behavior, not iPhone memory profiling or native UI performance. Current native run 38849586897 predates the optimization.
+
+2026-10-16: Prepared an explicit archive refresh action. Refresh loads the newest first page off the UI thread, shares a loading guard with pagination, and preserves already displayed rows on failure. Initial load failure can now be retried on the same screen. Swift syntax validation dispatched; native/UI device validation pending.
+
+2026-10-16: Native run 38849586897 succeeded; downloaded unsigned IPA independently verified (bundle one.tracefox.telegram, 75564079 bytes, SHA-256 5e5c3c87ea93825727bae35d0160c0d926ec24c08b514fea13b865a403ac07a2). Cloud identity/payload/queue/sender/native Message adapter compile. Later manual export UI, archived-record adapter and pagination are excluded. Swift refresh syntax run 38856866514 also passed. Next candidate includes these accumulated changes; device/signing/live login remain unverified.

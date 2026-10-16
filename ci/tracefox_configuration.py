@@ -75,6 +75,7 @@ def integration_changes(source):
     changes = {path: (original, modified)}
     recipe = Path(__file__).resolve().parent
     overlays = {
+        'TraceFoxArchiveCloudAction.swift': 'Swiftgram/SGSettingsUI/Sources/TraceFoxArchiveCloudAction.swift',
         'TraceFoxCloudArchiveBridge.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxCloudArchiveBridge.swift',
         'TraceFoxCloudArchiveSender.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxCloudArchiveSender.swift',
         'TraceFoxCloudArchiveQueue.swift': 'submodules/TelegramCore/Sources/Swiftgram/TraceFoxCloudArchiveQueue.swift',
