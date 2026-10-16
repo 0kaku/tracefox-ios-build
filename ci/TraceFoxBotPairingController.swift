@@ -52,6 +52,6 @@ public func traceFoxBotPairingController(context: AccountContext) -> ViewControl
         return (state, (list, arguments))
     }
     let controller = ItemListController(context: context, state: signal)
-    controller.didDisappear = { _ in closed = true; task?.cancel(); task = nil; client = nil }
+    controller.didDisappear = { _ in closed = true; withExtendedLifetime(client) { task?.cancel() }; task = nil; client = nil }
     return controller
 }
