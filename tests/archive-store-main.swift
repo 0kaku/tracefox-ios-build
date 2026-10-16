@@ -43,6 +43,12 @@ import Foundation
         precondition(foreign.isEmpty)
         let exact = try first.record(peer: -42, namespace: 0, message: -7)
         precondition(exact?.files == [name])
+        try first.saveTextEdit(peer: -42, namespace: 0, message: -7, timestamp: 100,
+            previousText: "Тест", updatedText: "Updated text")
+        let updatedRetained = try first.record(peer: -42, namespace: 0, message: -7)!
+        precondition(updatedRetained.files == [name] && updatedRetained.deleted && updatedRetained.ttlSeconds == Int32.max)
+        let retainedAfterEdit = try first.mediaURL(name: name)
+        precondition(tryData(retainedAfterEdit) == original)
         let other = try second.record(peer: -42, namespace: 0, message: -7)
         precondition(other == nil)
         do {

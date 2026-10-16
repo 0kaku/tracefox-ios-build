@@ -166,7 +166,7 @@ public final class TraceFoxArchiveStore {
         }
         try save(TraceFoxArchiveRecord(peer: peer, namespace: namespace, message: message,
             timestamp: timestamp, text: updatedText, deleted: existing?.deleted ?? false,
-            files: [], ttlSeconds: ttlSeconds ?? existing?.ttlSeconds, previousTexts: history,
+            files: existing?.files ?? [], ttlSeconds: ttlSeconds ?? existing?.ttlSeconds, previousTexts: history,
             globallyUniqueId: globallyUniqueId ?? existing?.globallyUniqueId))
     }
 
