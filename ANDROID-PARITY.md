@@ -16,3 +16,6 @@ Secret chats remain local. Their iOS message identity is not yet mapped to the A
 iOS can suspend app execution. Work resumes when the account context starts again; there is no claim of unrestricted background execution. The ledger persists per-account acknowledgements, including text, deletion and file-reference fingerprints, with atomic protected writes. Failure or cancellation does not delete local records. A lost server reply can cause at-least-once retry. Before initial credentials are saved, relaunch can create another authenticated nonce command; temporary network retries within one process reuse the attempt.
 
 No new device login, Apple login, purchases or automation activation was performed by this port. Runtime tests use synthetic fixtures. Do not call the candidate ready until native compilation, signing and physical iPhone checks pass.
+
+
+Secret-cloud follow-up: see SECRET-CLOUD.md for the newly implemented stable-ID secret-copy transport and pending deployment/device checks. Earlier local-only secret scope describes previous builds.
