@@ -13,7 +13,11 @@ jobs:
           persist-credentials: false
       - name: Parse staged native privacy sources
         run: |
-          swiftc -frontend -parse ci/TraceFoxPrivacyControl.swift ci/TraceFoxPrivacyController.swift ci/TraceFoxArchiveController.swift ci/TraceFoxBotPairingController.swift ci/TraceFoxArchiveCloudAction.swift
+          swiftc -frontend -parse ci/TraceFoxUpdatesController.swift ci/TraceFoxPrivacyControl.swift ci/TraceFoxPrivacyController.swift ci/TraceFoxArchiveController.swift ci/TraceFoxBotPairingController.swift ci/TraceFoxArchiveCloudAction.swift
+      - name: Test update release validation
+        run: |
+          swiftc ci/TraceFoxUpdates.swift tests/updates-main.swift -o "$RUNNER_TEMP/update-test"
+          "$RUNNER_TEMP/update-test"
       - name: Test bot-link protocol boundaries without network access
         run: |
           swiftc ci/TraceFoxBotLinkProtocol.swift tests/bot-link-main.swift -o "$RUNNER_TEMP/bot-link-test"
