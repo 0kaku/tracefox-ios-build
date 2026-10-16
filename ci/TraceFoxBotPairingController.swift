@@ -24,6 +24,9 @@ private final class BotPairingScreenModel {
     let state = Promise<BotPairingScreenState>()
     var current = BotPairingScreenState()
     var coordinator: TraceFoxBotPairingCoordinator?
+    var client: TraceFoxBotLinkClient?
+    var statusTask: TraceFoxBotClaimTask?
+    var generation: UInt64 = 0
     let accountObservation = MetaDisposable()
     var wasAccountVisible = false
 
@@ -33,7 +36,9 @@ private final class BotPairingScreenModel {
         ownerId = context.account.peerId.id._internalGetInt64Value()
         do {
             guard let origin = URL(string: SG_CONFIG.apiUrl) else { throw TraceFoxBotLinkError.invalidOrigin }
-            coordinator = TraceFoxBotPairingCoordinator(client: try TraceFoxBotLinkClient(origin: origin), store: store)
+            let client = try TraceFoxBotLinkClient(origin: origin)
+            self.client = client
+            coordinator = TraceFoxBotPairingCoordinator(client: client, store: store)
             current.hasStoredToken = try store.read(ownerId: ownerId) != nil
             if current.hasStoredToken { current.message = "Прив’язку збережено на пристрої. Її чинність на сервері ще не перевірено." }
         } catch { current.message = "Не вдалося підготувати прив’язку або відкрити захищене сховище." }
@@ -57,8 +62,10 @@ private final class BotPairingScreenModel {
         }))
     }
 
-    deinit { accountObservation.dispose(); coordinator?.cancel() }
+    deinit { accountObservation.dispose(); coordinator?.cancel(); statusTask?.cancel() }
     func cancel() {
+        generation &+= 1
+        statusTask?.cancel(); statusTask = nil
         coordinator?.cancel()
         current.hasAttempt = false; current.busy = false
         state.set(.single(current))
@@ -98,6 +105,36 @@ private final class BotPairingScreenModel {
                 try store.remove(ownerId: ownerId)
                 current.hasStoredToken = false
                 current.message = "Прив’язку видалено з цього пристрою."
+            case 4:
+                guard let client = client, let credentials = try store.read(ownerId: ownerId) else {
+                    current.hasStoredToken = false
+                    current.message = "Збереженої прив’язки немає. Створіть новий код."
+                    break
+                }
+                current.busy = true
+                let expectedGeneration = generation
+                statusTask = try client.status(credentials: credentials) { [weak self] result in
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self = self, self.generation == expectedGeneration, self.current.accountActive else { return }
+                        self.statusTask = nil; self.current.busy = false
+                        switch result {
+                        case let .success(status):
+                            let expiry = DateFormatter.localizedString(from: Date(timeIntervalSince1970: TimeInterval(status.expires_at)), dateStyle: .short, timeStyle: .short)
+                            self.current.message = "Прив’язка чинна до \(expiry). " + (status.archive_available ? "Доступ до хмарного архіву є. " : "Доступ до хмарного архіву не активний. ") + "Синхронізацію повідомлень ще не підключено."
+                        case let .failure(error):
+                            if case .httpStatus(401)? = error as? TraceFoxBotLinkClientError {
+                                do {
+                                    try self.store.remove(ownerId: self.ownerId)
+                                    self.current.hasStoredToken = false
+                                    self.current.message = "Прив’язка більше не чинна. Створіть новий код."
+                                } catch { self.current.message = "Прив’язка не чинна, але очистити захищене сховище не вдалося." }
+                            } else {
+                                self.current.message = "Не вдалося перевірити прив’язку. Перевірте мережу та повторіть."
+                            }
+                        }
+                        self.state.set(.single(self.current))
+                    }
+                }
             default: return
             }
         } catch { current.busy = false; current.message = "Операцію не завершено. Спробуйте створити новий код або повторити пізніше." }
@@ -122,7 +159,10 @@ public func traceFoxBotPairingController(context: AccountContext) -> ViewControl
                 entries.append(.action(id: 2, section: .pairing, actionType: 1, text: "Перевірити підтвердження", kind: .generic))
                 entries.append(.action(id: 3, section: .pairing, actionType: 2, text: "Скасувати спробу", kind: .generic))
             }
-            if state.hasStoredToken { entries.append(.action(id: 4, section: .pairing, actionType: 3, text: "Видалити прив’язку з пристрою", kind: .generic)) }
+            if state.hasStoredToken {
+                entries.append(.action(id: 4, section: .pairing, actionType: 4, text: "Перевірити стан прив’язки", kind: .generic))
+                entries.append(.action(id: 5, section: .pairing, actionType: 3, text: "Видалити прив’язку з пристрою", kind: .generic))
+            }
         }
         let controller = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Бот TraceFox"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
         let list = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: entries, style: .blocks, ensureVisibleItemTag: nil, initialScrollToItem: nil)
