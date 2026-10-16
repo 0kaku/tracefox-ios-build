@@ -13,7 +13,7 @@ jobs:
           persist-credentials: false
       - name: Parse staged native privacy sources
         run: |
-          swiftc -frontend -parse ci/TraceFoxPrivacyControl.swift ci/TraceFoxPrivacyController.swift ci/TraceFoxArchiveController.swift ci/TraceFoxBotPairingController.swift
+          swiftc -frontend -parse ci/TraceFoxPrivacyControl.swift ci/TraceFoxPrivacyController.swift ci/TraceFoxArchiveController.swift ci/TraceFoxBotPairingController.swift ci/TraceFoxArchiveCloudAction.swift
       - name: Test bot-link protocol boundaries without network access
         run: |
           swiftc ci/TraceFoxBotLinkProtocol.swift tests/bot-link-main.swift -o "$RUNNER_TEMP/bot-link-test"

@@ -13,12 +13,16 @@ private enum TraceFoxArchiveSection: Int32, SGItemListSection { case messages }
 private typealias ArchiveEntry = SGItemListUIEntry<TraceFoxArchiveSection, Int, Int, Int, Int, Int>
 
 public func traceFoxArchiveController(context: AccountContext) -> ViewController {
+    let cloud = TraceFoxArchiveCloudAction(context: context)
     let recordsPromise = Promise<([TraceFoxArchiveRecord], Bool)>()
     var currentRecords: [TraceFoxArchiveRecord] = []
     var shareImpl: ((TraceFoxArchiveRecord) -> Void)?
     let arguments = SGItemListArguments<Int, Int, Int, Int, Int>(context: context, action: { index in
-        guard currentRecords.indices.contains(index) else { return }
-        shareImpl?(currentRecords[index])
+        if index == -1 { cloud.send(); return }
+        let recordIndex = index / 2
+        guard currentRecords.indices.contains(recordIndex) else { return }
+        if index % 2 == 0 { shareImpl?(currentRecords[recordIndex]) }
+        else { cloud.send(record: currentRecords[recordIndex]) }
     })
     DispatchQueue(label: "tracefox.archive.browser").async {
         do {
@@ -28,9 +32,9 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
             recordsPromise.set(.single(([], true)))
         }
     }
-    let signal = combineLatest(context.sharedContext.presentationData, recordsPromise.get())
+    let signal = combineLatest(context.sharedContext.presentationData, recordsPromise.get(), cloud.status.get())
     |> deliverOnMainQueue
-    |> map { presentationData, result -> (ItemListControllerState, (ItemListNodeState, Any)) in
+    |> map { presentationData, result, cloudStatus -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let (records, loadFailed) = result
         currentRecords = records
         var entries: [ArchiveEntry] = [
@@ -42,6 +46,8 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
         } else if records.isEmpty {
             entries.append(.notice(id: 2, section: .messages, text: "Збережених копій поки немає."))
         }
+        entries.append(.notice(id: 3, section: .messages, text: cloudStatus))
+        entries.append(.action(id: 4, section: .messages, actionType: -1, text: "Надіслати наступну текстову подію черги", kind: .generic))
         let formatter = DateFormatter()
         formatter.dateStyle = .short; formatter.timeStyle = .short
         for (index, record) in records.enumerated() {
@@ -53,10 +59,12 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
             let history = (record.previousTexts ?? []).suffix(3).reversed().map {
                 "\nПопередній текст:\n" + String($0.prefix(1000))
             }.joined()
-            entries.append(.notice(id: 3 + index * 2, section: .messages,
+            entries.append(.notice(id: 10 + index * 3, section: .messages,
                 text: title + " · Чат \(record.peer)" + lifetime + "\n" + String(record.text.prefix(3000)) + history + "\nФайлів: \(record.files.count)"))
-            entries.append(.action(id: 4 + index * 2, section: .messages, actionType: index,
+            entries.append(.action(id: 11 + index * 3, section: .messages, actionType: index * 2,
                 text: "Відкрити / поділитися копією", kind: .generic))
+            entries.append(.action(id: 12 + index * 3, section: .messages, actionType: index * 2 + 1,
+                text: "Надіслати текст копії в хмарний архів", kind: .generic))
         }
         let state = ItemListControllerState(presentationData: ItemListPresentationData(presentationData),
             title: .text("Архів TraceFox"), leftNavigationButton: nil, rightNavigationButton: nil,
@@ -66,6 +74,7 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
         return (state, (list, arguments))
     }
     let controller = ItemListController(context: context, state: signal)
+    controller.didDisappear = { [weak cloud] _ in cloud?.cancel() }
     shareImpl = { [weak controller] record in
         guard let controller = controller else { return }
         var items: [Any] = []
