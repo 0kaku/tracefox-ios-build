@@ -14,6 +14,7 @@ private struct BotPairingScreenState {
     var hasAttempt = false
     var busy = false
     var hasStoredToken = false
+    var accountActive = true
 }
 
 private final class BotPairingScreenModel {
@@ -23,6 +24,8 @@ private final class BotPairingScreenModel {
     let state = Promise<BotPairingScreenState>()
     var current = BotPairingScreenState()
     var coordinator: TraceFoxBotPairingCoordinator?
+    let accountObservation = MetaDisposable()
+    var wasAccountVisible = false
 
     init(context: AccountContext) {
         self.context = context
@@ -34,9 +37,26 @@ private final class BotPairingScreenModel {
             if current.hasStoredToken { current.message = "Прив’язку збережено на пристрої. Її чинність на сервері ще не перевірено." }
         } catch { current.message = "Не вдалося підготувати прив’язку або відкрити захищене сховище." }
         state.set(.single(current))
+        accountObservation.set((context.sharedContext.activeAccountsWithInfo
+        |> deliverOnMainQueue).start(next: { [weak self] view in
+            guard let self = self else { return }
+            let present = view.accounts.contains(where: { $0.account.id == context.account.id })
+            if present { self.wasAccountVisible = true }
+            let active = present && view.primary == context.account.id
+            if !active {
+                self.cancel()
+                self.current.message = "Акаунт більше не активний. Відкрийте прив’язку з налаштувань потрібного акаунта."
+                if !present && self.wasAccountVisible {
+                    try? self.store.remove(ownerId: self.ownerId)
+                    self.current.hasStoredToken = false
+                }
+            }
+            self.current.accountActive = active
+            self.state.set(.single(self.current))
+        }))
     }
 
-    deinit { coordinator?.cancel() }
+    deinit { accountObservation.dispose(); coordinator?.cancel() }
     func cancel() {
         coordinator?.cancel()
         current.hasAttempt = false; current.busy = false
@@ -44,7 +64,7 @@ private final class BotPairingScreenModel {
     }
 
     func action(_ action: Int) {
-        guard !current.busy else { return }
+        guard current.accountActive, !current.busy else { return }
         do {
             switch action {
             case 0:
@@ -95,7 +115,7 @@ public func traceFoxBotPairingController(context: AccountContext) -> ViewControl
     |> deliverOnMainQueue
     |> map { presentationData, state -> (ItemListControllerState, (ItemListNodeState, Any)) in
         var entries: [BotPairingEntry] = [.notice(id: 0, section: .pairing, text: state.message)]
-        if !state.busy {
+        if state.accountActive && !state.busy {
             entries.append(.action(id: 1, section: .pairing, actionType: 0, text: "Скопіювати код і відкрити бота", kind: .generic))
             if state.hasAttempt {
                 entries.append(.action(id: 2, section: .pairing, actionType: 1, text: "Перевірити підтвердження", kind: .generic))
