@@ -13,7 +13,10 @@ public final class TraceFoxCloudArchiveQueue {
     private let root: URL
     private let maxEntries: Int
     private let maxBytes: Int
-    private let lock = NSLock()
+    // Multiple callers can reopen the same root; serialize their read/modify/write
+    // transactions across instances in this process, not just within one object.
+    private static let storageLock = NSLock()
+    private let lock = TraceFoxCloudArchiveQueue.storageLock
 
     public init(root: URL, maxEntries: Int = 1000, maxBytes: Int = 32 * 1024 * 1024) throws {
         guard maxEntries > 0, maxBytes > 0 else { throw TraceFoxCloudQueueError.full }

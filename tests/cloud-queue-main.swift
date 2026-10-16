@@ -27,6 +27,24 @@ import Foundation
         precondition(foreignFirst == nil)
         try Data("broken".utf8).write(to: root.appendingPathComponent("a/pending.json"))
         do { _ = try reopened.first(); fatalError("Corrupt queue silently reset") } catch {}
+        let writerA = try TraceFoxCloudArchiveQueue(root: root.appendingPathComponent("concurrent"))
+        let writerB = try TraceFoxCloudArchiveQueue(root: root.appendingPathComponent("concurrent"))
+        let errorLock = NSLock()
+        var errors = 0
+        DispatchQueue.concurrentPerform(iterations: 30) { index in
+            do {
+                let item = try TraceFoxCloudArchivePayload(identity: identity, text: "item\(index)", date: 100, event: .edited)
+                try (index % 2 == 0 ? writerA : writerB).enqueue(item)
+            } catch { errorLock.lock(); errors += 1; errorLock.unlock() }
+        }
+        precondition(errors == 0)
+        var texts = Set<String>()
+        while let item = try writerA.first() {
+            texts.insert(item.payload.text)
+            try writerB.acknowledge(item.id)
+        }
+        precondition(texts.count == 30)
         print("PASS: durable FIFO/reopen, adjacent duplicate coalescing, ordered acknowledgement, quota, account isolation and corruption errors; no network")
+        print("PASS: concurrent writers across two queue instances preserve all 30 distinct events")
     }
 }
