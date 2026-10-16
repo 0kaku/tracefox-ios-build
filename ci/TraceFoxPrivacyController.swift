@@ -91,7 +91,7 @@ private final class PrivacyScreenModel {
 private enum PrivacySection: Int32, SGItemListSection { case settings }
 private typealias PrivacyEntry = SGItemListUIEntry<PrivacySection, Int, Int, Int, Int, Int>
 
-// Prepared for native compilation; settings navigation is enabled only after validation.
+// Settings entry is part of the native integration candidate.
 public func traceFoxPrivacyController(context: AccountContext) -> ViewController {
     let model = PrivacyScreenModel(context: context)
     let arguments = SGItemListArguments<Int, Int, Int, Int, Int>(context: context, action: { action in model.apply(retry: action == 1) })

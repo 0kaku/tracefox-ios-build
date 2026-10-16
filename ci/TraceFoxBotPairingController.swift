@@ -146,7 +146,7 @@ private final class BotPairingScreenModel {
 private enum BotPairingSection: Int32, SGItemListSection { case pairing }
 private typealias BotPairingEntry = SGItemListUIEntry<BotPairingSection, Int, Int, Int, Int, Int>
 
-// Staged for compilation; settings navigation remains disabled until validation.
+// Settings entry is part of the native integration candidate.
 public func traceFoxBotPairingController(context: AccountContext) -> ViewController {
     let model = BotPairingScreenModel(context: context)
     let arguments = SGItemListArguments<Int, Int, Int, Int, Int>(context: context, action: { model.action($0) })

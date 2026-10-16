@@ -14,6 +14,19 @@ configuration and bot links, without the later archive and privacy changes.
 
 ## Installation prerequisite
 
+Windows installation research (official sources checked 2026-10-16):
+[AltStore Classic Windows instructions](https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows)
+provide an AltServer path requiring a connected/unlocked trusted iPhone and user
+Apple ID interaction. They specify Apple iTunes/iCloud prerequisites and include
+an alternate path for Windows Store iCloud. No installers have been run here.
+[Apple developer account overview](https://developer.apple.com/help/account/basics/about-your-developer-account)
+documents that Personal Team device provisioning profiles expire after seven days.
+This route has not been tested with TraceFox signing/entitlements and is not yet
+a verified installation method. No iPhone/iPad/Apple Mobile device was detected by
+the Windows present-device inventory during this check; that does not establish
+whether the user owns a phone or has working drivers. The existing question about
+their chosen installation method remains pending.
+
 The user's available iPhone and signing/installation method are still unknown;
 the question is already pending in the conversation. Do not request credentials
 or attempt Apple/Telegram login without user participation. After a method is

@@ -1,9 +1,11 @@
 # TraceFox iOS: integration build and verification
 
 Current state is recorded in `D:/TraceFoxBuild/ios-ci-status.json`.
-The own-login IPA from run 38812374391 was independently verified but remains
-unsigned and untested on a device. Archive integration build 38820852381 is
-running. Later archive quota/rollback and privacy changes are staged separately.
+Own-login, local archive and native privacy builds have passed compilation.
+UI integration run 38844096749 also succeeded; its independent IPA verification
+is tracked in the status file. Later cloud identity/queue/sender/adapter changes
+passed host tests and await full native compilation. Device behavior, signing
+and installation remain unverified. The sections below retain milestone history.
 See [DEVICE-VALIDATION.md](DEVICE-VALIDATION.md) for remaining device checks.
 
 ## TraceFox login build (2026-10-16)
@@ -372,3 +374,16 @@ The corrected candidate was dispatched at ed6d6f205e6fe05a3e38f72121a0e58237757c
 Host run 38830649430 passed, including URLSession claim-client tests through local
 URLProtocol fixtures. HTTP redirects are rejected; cookies/cache are disabled.
 This performs no live pairing. Native HTTP/Keychain integration and UI remain open.
+
+## Privacy native compilation passed; UI integration candidate
+
+Run 38830755770 succeeded. Its IPA was independently verified with SHA-256
+53c6808d4c211e7670cde88f15bf5733332292d34de0a22f342b9eb6a43aea11.
+This confirms compilation of native privacy hooks/control and the original hidden
+privacy screen, not real-account privacy behavior. It predates later bot pairing
+and account lifecycle UI updates. Signing/device verification remains absent.
+Run 38844096749 at e598e8dde970e141d7d19e310c77efaf68f8ab04 now compiles
+settings navigation for privacy and manual bot pairing, plus Keychain, status,
+logout and current-account guards. This is a changed candidate, not a duplicate.
+Standalone run 38834408132 passed syntax/host checks for the prior account-aware
+privacy screen. Final navigation and reset changes await full native validation.

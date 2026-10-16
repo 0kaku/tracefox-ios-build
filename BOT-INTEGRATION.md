@@ -29,10 +29,11 @@ ID directly to the backend is not a valid mapping and risks collisions/rejection
 
 Implement and test a mapping for supported cloud peer/message namespaces before
 upload integration. Local/outgoing placeholders must wait for a stable cloud ID.
-Secret-chat records have no supported backend mapping in the current contract;
-retain local behavior and do not silently export them through a cloud-only route.
-Any future secret-chat upload capability needs an explicit product flow and a
-distinct identity/schema that preserves isolation and deduplication.
+Android already maps secret records through a reserved synthetic chat-ID range
+and positive message IDs before using the ordinary backend route. This was found
+in TraceFoxArchiveIdentity.java after the initial backend-only audit. iOS has not
+implemented or verified that mapping. Retain local behavior until cross-client
+identity compatibility and the explicit secret-media upload flow are validated.
 
 ## Remaining implementation
 
@@ -132,3 +133,93 @@ before changing state. Host run 38833946187 parses the status UI addition and
 reruns underlying HTTP/Keychain tests; the final claim UI generation guard was
 added locally afterward and is pending syntax/native validation. UIKit behavior
 and real server interaction remain unverified; navigation is still disabled.
+
+Cloud identity preparation: TraceFoxCloudArchiveIdentity accepts unpacked peer
+namespace/ID and a positive cloud message ID. User/group/channel mapping matches
+Android archiveDialog, including the channel offset. Secret, local, scheduled and
+out-of-range components are rejected. Host run 38844565949 validates these rules;
+no upload queue or network submission is enabled. The earlier backend-only claim
+that secret mapping did not exist is corrected: Android uses a reserved synthetic
+mapping, which remains unimplemented/unverified for iOS.
+
+Secret message identity audit: Android SecretChatHelper assigns native message IDs
+with getNewMessageId(), while iOS secret replay uses its local tagLocalIndex in
+MessageId and preserves decrypted randomId separately as globallyUniqueId. Thus
+abs(nativeId) is not a cross-client identity even if secret chat IDs agree. The
+local iOS record now retains optional globallyUniqueId through capture/deletion
+and text history; older JSON decodes with nil. Host tests exercise a signed 64-bit
+value through retained media and deletion. This is local metadata only; the
+backend's positive/53-bit message_id field cannot blindly receive randomId.
+Secret cloud sync requires a separate stable identity contract before enabling.
+
+Coordinator reentrancy fix: invoking claim while holding its lock could deadlock
+with an inline-completing transport. It now reserves a unique poll ID, releases
+the lock before invoking transport, and attaches/cancels the returned task only
+if that poll is still current. Completion and synchronous throws clear only their
+own reservation. Repeated callbacks cannot overwrite an already committed token.
+Host run 38845337525 adds inline completion, throw recovery and duplicate callback
+regressions. The actual URLSession transport is asynchronous, but the coordinator
+interface now handles both completion timings. Native integration remains pending.
+
+Cloud payload preparation: the explicit Encodable payload mirrors AndroidMessage
+fields for message/edited/deleted events, chat type, title/text/date and optional
+TTL. Unicode limits use scalar counts to match Python string lengths rather than
+Swift grapheme counts; oversized content fails instead of silent truncation.
+Host tests encode a channel deletion/one-view timer and reject oversized combining
+Unicode text, invalid date and negative TTL. No queue or upload operation exists
+yet. Backend behavior and native ID extraction still need integration validation.
+
+Actual Swift-to-backend contract check: run 38846150467 exported three synthetic
+JSON payloads from JSONEncoder. Downloaded fixtures were validated locally by the
+real app.android_bridge.AndroidMessage Pydantic model, including one-view TTL,
+deleted event and 16000 Unicode scalar values. All three passed without database
+or server mutations. Fixture path: ios-ci-runs/38846150467/cloud-payload-fixtures.json.
+This proves payload schema compatibility, not authenticated upload or sync.
+
+Explicit event submit preparation: the HTTP client can POST one validated cloud
+payload to /api/android/messages with the account bearer token. Only HTTP 200,
+ok=true and a positive archive_id acknowledge success; denied/malformed responses
+fail. Redirect rejection/cookie/cache policy is shared with pairing. URLProtocol
+fixtures verify headers, valid/invalid acknowledgements and HTTP 403. No UI/action
+or automatic queue calls this API yet; no live content was submitted.
+
+Durable queue preparation: an explicitly account-specific root stores an atomic
+bounded FIFO (1000 entries/32 MiB defaults), excluded from backup and protected
+until first unlock on iOS. Only the head UUID can be acknowledged. Identical
+adjacent pending events coalesce; a -> b -> a remains distinct. Corruption errors
+propagate rather than resetting pending events. Host run 38847021506 checks
+reopen, ordering, quota and account-root isolation. Capture/drainer wiring remains
+absent; the queue currently requires a single coordinated instance per root.
+No automatic synchronization or live data submission is enabled.
+
+Queue concurrency update supersedes the single-instance requirement above:
+read/modify/write transactions now share a process-wide lock across queue objects.
+Run 38847387598 concurrently appends 30 distinct events through two instances
+sharing one root, then acknowledges them through the other instance and checks
+all payloads survived. This is in-process coordination, not cross-process locking;
+no extension/background upload worker has been enabled.
+
+Queue sender preparation: an owner-bound explicit one-event worker submits only
+the current FIFO head and acknowledges it only after a positive server archive ID.
+Network errors, invalid acknowledgements, cancellation and stale/duplicate
+callbacks cannot drop pending events. Credentials for another owner are rejected.
+Host run 38847892532 exercises these outcomes with a controlled fake submitter.
+Retries are at-least-once, not exactly-once: a server commit with a lost response
+can be resent. Cross-device edit conflicts still need a separate server policy.
+No capture hooks, automatic scheduling or sync UI starts the sender yet.
+
+Persisted payload validation: synthesized Codable decoding bypasses the validating
+public initializer. The queue now revalidates entries on enqueue/read and HTTP
+submit validates again, reconstructing a supported cloud identity and checking
+text/title/date/TTL/temporary invariants. A test mutates a valid persisted event
+to message_id=0 and confirms it is rejected without silently clearing the queue.
+The format remains local staged code; native compilation and sync wiring pending.
+
+Native message adapter preparation: TraceFoxCloudArchiveBridge reads Message.id
+peer namespace and raw peer ID separately, filters unsupported secret/local IDs,
+Telegram service peer 777000 and pairing commands, then builds a validated cloud
+payload with one-view TTL priority. It does not enqueue or send anything. Host
+run 38849172907 compiles the actual adapter with Postbox/media API fixtures whose
+packed/unpacked IDs deliberately differ. Existing archive bridge regressions also
+run after extending fixtures with message ID components. Native compatibility and
+real capture/opt-in wiring remain pending. Prior persisted-validation tests passed.
