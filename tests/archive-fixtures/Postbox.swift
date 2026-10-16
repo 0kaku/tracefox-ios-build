@@ -4,9 +4,19 @@ import Foundation
 public protocol MediaResource { var fixtureKey: String { get } }
 public protocol Media {}
 public struct PeerId: Hashable {
+    public struct Namespace: Hashable {
+        let value: Int32
+        public func _internalGetInt32Value() -> Int32 { value }
+    }
+    public struct Id: Hashable {
+        let value: Int64
+        public func _internalGetInt64Value() -> Int64 { value }
+    }
     public let value: Int64
-    public init(_ value: Int64) { self.value = value }
-    public func toInt64() -> Int64 { value }
+    public let namespace: Namespace
+    public var id: Id { Id(value: value) }
+    public init(_ value: Int64, namespace: Int32 = 0) { self.value = value; self.namespace = Namespace(value: namespace) }
+    public func toInt64() -> Int64 { value ^ (Int64(namespace.value) << 56) }
 }
 public struct MessageId: Hashable {
     public let peerId: PeerId
@@ -17,12 +27,14 @@ public struct MessageId: Hashable {
     }
 }
 public struct Message {
+    public let id: MessageId
     public let timestamp: Int32
     public let text: String
     public let media: [Media]
     public let attributes: [Any]
     public let globallyUniqueId: Int64?
-    public init(timestamp: Int32, text: String, media: [Media], attributes: [Any], globallyUniqueId: Int64? = nil) {
+    public init(timestamp: Int32, text: String, media: [Media], attributes: [Any], globallyUniqueId: Int64? = nil, id: MessageId? = nil) {
+        self.id = id ?? MessageId(peerId: PeerId(0), namespace: 0, id: 0)
         self.timestamp = timestamp; self.text = text; self.media = media; self.attributes = attributes
         self.globallyUniqueId = globallyUniqueId
     }
