@@ -77,6 +77,8 @@ class TraceFoxLoginTest(unittest.TestCase):
         pairing = changes[source/'Swiftgram/SGSettingsUI/Sources/TraceFoxBotPairingController.swift'][1]
         self.assertNotIn('Скопіювати код', pairing)
         self.assertNotIn('coordinator.begin', pairing)
+        settings = changes[source/'Swiftgram/SGSettingsUI/Sources/SGSettingsController.swift'][1]
+        self.assertIn('traceFoxArchiveController(context: context, mediaTabs: false)', settings)
 
 
 if __name__ == '__main__': unittest.main()

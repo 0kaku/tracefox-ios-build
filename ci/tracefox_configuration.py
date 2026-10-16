@@ -43,12 +43,13 @@ def integration_changes(source):
     replacements = {
         'import SGAPIToken': 'import SGAPIToken\nimport SGConfig',
         'private enum SGDisclosureLink: String {':
-            'private enum SGDisclosureLink: String {\n    case tracefoxBot\n    case tracefoxArchive\n    case tracefoxLocalArchive\n    case tracefoxPrivacy\n    case tracefoxPairing\n    case tracefoxUpdates',
+            'private enum SGDisclosureLink: String {\n    case tracefoxBot\n    case tracefoxArchive\n    case tracefoxLocalArchive\n    case tracefoxPrivacy\n    case tracefoxPairing\n    case tracefoxUpdates\n    case tracefoxMessageCopies',
         '    return filterSGItemListUIEntrires(entries: entries, by: state.searchQuery)':
             '    entries.append(.header(id: id.count, section: .other, text: "TraceFox", badge: nil))\n'
             '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxBot, text: "Бот TraceFox"))\n'
             '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxArchive, text: "Хмарний архів TraceFox"))\n'
             '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxLocalArchive, text: "Локальний архів TraceFox"))\n'
+            '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxMessageCopies, text: "Копії повідомлень та історія змін"))\n'
             '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxPrivacy, text: "Приватність TraceFox"))\n'
             '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxPairing, text: "Підключення до TraceFox"))\n'
             '    entries.append(.disclosure(id: id.count, section: .other, link: .tracefoxUpdates, text: "Оновлення TraceFox"))\n'
@@ -62,6 +63,8 @@ def integration_changes(source):
             '                context.sharedContext.applicationBindings.openUrl("https://t.me/" + SG_CONFIG.botUsername + "?startapp=archive")\n'
             '            case .tracefoxLocalArchive:\n'
             '                pushControllerImpl?(traceFoxArchiveController(context: context))\n'
+            '            case .tracefoxMessageCopies:\n'
+            '                pushControllerImpl?(traceFoxArchiveController(context: context, mediaTabs: false))\n'
             '            case .tracefoxPrivacy:\n'
             '                pushControllerImpl?(traceFoxPrivacyController(context: context))\n'
             '            case .tracefoxPairing:\n'

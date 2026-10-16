@@ -4,7 +4,7 @@ This candidate supersedes the earlier manual pairing/manual text export UI.
 
 | Requested behavior | iOS implementation | Validation still needed |
 | --- | --- | --- |
-| Deleted media / view-once / secret chat tabs | Native ItemList textWithTabs, category predicate before page selection; missing retained files excluded from media tabs | Native compile and iPhone layout |
+| Deleted media / view-once / secret chat tabs | Native ItemList textWithTabs, category predicate before page selection; missing retained files excluded from media tabs. All message copies/history remain available from a separate settings entry | Native compile and iPhone layout |
 | Automatic bot connection after login | Authorized main-app AccountContext owns worker; native bot resolve/enqueue of authentication nonce, validated claim to account-record Keychain | Real Telegram delivery and signed-device lifecycle |
 | Backups without switch | Account-root archive is durable outbox; scan pages, authenticated metadata POST and first completed file PUT; acknowledgement ledger written only after both succeed | Native compile, network/offline/device behavior |
 | Existing credentials/offline/logout | Status checks, 401 re-pair, transient backoff; logout stops worker before Keychain removal; weak registry prevents duplicate workers | Native scheduler and late-callback device checks |
