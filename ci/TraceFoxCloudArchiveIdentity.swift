@@ -3,6 +3,7 @@ import Foundation
 public struct TraceFoxCloudArchiveIdentity: Equatable {
     public let chatId: Int64
     public let messageId: Int32
+    public let chatType: String
 
     // Inputs are unpacked native peer/message components, never packed PeerId.toInt64().
     // Namespace values are pinned in SyncCore_Namespaces.swift at the source commit.
@@ -11,11 +12,12 @@ public struct TraceFoxCloudArchiveIdentity: Equatable {
         let backendLimit: Int64 = 1 << 52
         guard peerId > 0, peerId <= backendLimit, messageNamespace == 0, messageId > 0 else { return nil }
         switch peerNamespace {
-        case 0: chatId = peerId
-        case 1: chatId = -peerId
+        case 0: chatId = peerId; chatType = "private"
+        case 1: chatId = -peerId; chatType = "group"
         case 2:
             guard peerId <= backendLimit - 1_000_000_000_000 else { return nil }
             chatId = -1_000_000_000_000 - peerId
+            chatType = "channel"
         default: return nil
         }
         self.messageId = messageId

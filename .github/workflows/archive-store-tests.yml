@@ -20,7 +20,7 @@ jobs:
           "$RUNNER_TEMP/bot-link-test"
       - name: Test cloud archive identity mapping without uploads
         run: |
-          swiftc ci/TraceFoxCloudArchiveIdentity.swift tests/cloud-identity-main.swift -o "$RUNNER_TEMP/cloud-identity-test"
+          swiftc ci/TraceFoxCloudArchiveIdentity.swift ci/TraceFoxCloudArchivePayload.swift tests/cloud-identity-main.swift -o "$RUNNER_TEMP/cloud-identity-test"
           "$RUNNER_TEMP/cloud-identity-test"
       - name: Test account-scoped Keychain with synthetic credentials
         run: |
