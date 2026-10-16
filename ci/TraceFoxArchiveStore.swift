@@ -116,6 +116,8 @@ public final class TraceFoxArchiveStore {
 
     public func records(limit: Int = 100, before: TraceFoxArchiveCursor? = nil) throws -> [TraceFoxArchiveRecord] {
         lock.lock(); defer { lock.unlock() }
+        let pageSize = max(0, min(limit, 100))
+        guard pageSize > 0 else { return [] }
         var records: [TraceFoxArchiveRecord] = []
         for item in try manager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) where item.pathExtension == "json" {
             guard let path = try? file(item.lastPathComponent),
@@ -126,13 +128,17 @@ public final class TraceFoxArchiveStore {
                   let data = try? Data(contentsOf: path), data.count <= 1024 * 1024 else { continue }
             if let value = try? JSONDecoder().decode(TraceFoxArchiveRecord.self, from: data) {
                 if let cursor = before, !(value.timestamp < cursor.timestamp || (value.timestamp == cursor.timestamp && value.key < cursor.key)) { continue }
-                records.append(value)
+                // Retain only this page while scanning; archive text can approach the disk quota.
+                let index = records.firstIndex {
+                    value.timestamp > $0.timestamp || (value.timestamp == $0.timestamp && value.key > $0.key)
+                } ?? records.count
+                if index < pageSize {
+                    records.insert(value, at: index)
+                    if records.count > pageSize { records.removeLast() }
+                }
             }
         }
-        return Array(records.sorted {
-            if $0.timestamp != $1.timestamp { return $0.timestamp > $1.timestamp }
-            return $0.key > $1.key
-        }.prefix(max(0, min(limit, 100))))
+        return records
     }
 
     public func record(peer: Int64, namespace: Int32, message: Int32) throws -> TraceFoxArchiveRecord? {
