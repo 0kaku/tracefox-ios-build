@@ -14,11 +14,14 @@ private typealias ArchiveEntry = SGItemListUIEntry<TraceFoxArchiveSection, Int, 
 
 public func traceFoxArchiveController(context: AccountContext) -> ViewController {
     let cloud = TraceFoxArchiveCloudAction(context: context)
-    let recordsPromise = Promise<([TraceFoxArchiveRecord], Bool)>()
+    let recordsPromise = Promise<([TraceFoxArchiveRecord], Bool, Bool)>()
     var currentRecords: [TraceFoxArchiveRecord] = []
     var shareImpl: ((TraceFoxArchiveRecord) -> Void)?
+    var loadMoreImpl: (() -> Void)?
+    var loadingMore = false
     let arguments = SGItemListArguments<Int, Int, Int, Int, Int>(context: context, action: { index in
         if index == -1 { cloud.send(); return }
+        if index == -2 { loadMoreImpl?(); return }
         let recordIndex = index / 2
         guard currentRecords.indices.contains(recordIndex) else { return }
         if index % 2 == 0 { shareImpl?(currentRecords[recordIndex]) }
@@ -27,19 +30,19 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
     DispatchQueue(label: "tracefox.archive.browser").async {
         do {
             let records = try TraceFoxLocalArchive.store(mediaBox: context.account.postbox.mediaBox).records()
-            recordsPromise.set(.single((records, false)))
+            recordsPromise.set(.single((records, false, records.count == 100)))
         } catch {
-            recordsPromise.set(.single(([], true)))
+            recordsPromise.set(.single(([], true, false)))
         }
     }
     let signal = combineLatest(context.sharedContext.presentationData, recordsPromise.get(), cloud.status.get())
     |> deliverOnMainQueue
     |> map { presentationData, result, cloudStatus -> (ItemListControllerState, (ItemListNodeState, Any)) in
-        let (records, loadFailed) = result
+        let (records, loadFailed, hasMore) = result
         currentRecords = records
         var entries: [ArchiveEntry] = [
             .header(id: 0, section: .messages, text: "Локальний архів TraceFox", badge: nil),
-            .notice(id: 1, section: .messages, text: "Копії доступні лише на цьому пристрої. Показано до 100 останніх записів. Файли зберігаються лише коли були завантажені до видалення; ліміти: 64 MiB на файл, 1 GiB на архів.")
+            .notice(id: 1, section: .messages, text: "Показано копій: \(records.count). Наступні записи можна завантажити нижче. Файли зберігаються лише коли були завантажені до видалення; ліміти: 64 MiB на файл, 1 GiB на архів.")
         ]
         if loadFailed {
             entries.append(.notice(id: 2, section: .messages, text: "Не вдалося відкрити архів. Поверніться та спробуйте ще раз."))
@@ -48,6 +51,7 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
         }
         entries.append(.notice(id: 3, section: .messages, text: cloudStatus))
         entries.append(.action(id: 4, section: .messages, actionType: -1, text: "Надіслати наступну текстову подію черги", kind: .generic))
+        if hasMore { entries.append(.action(id: 5, section: .messages, actionType: -2, text: "Показати наступні 100 копій", kind: .generic)) }
         let formatter = DateFormatter()
         formatter.dateStyle = .short; formatter.timeStyle = .short
         for (index, record) in records.enumerated() {
@@ -74,6 +78,26 @@ public func traceFoxArchiveController(context: AccountContext) -> ViewController
         return (state, (list, arguments))
     }
     let controller = ItemListController(context: context, state: signal)
+    loadMoreImpl = {
+        guard !loadingMore, let last = currentRecords.last else { return }
+        loadingMore = true
+        let existing = currentRecords
+        let cursor = TraceFoxArchiveCursor(record: last)
+        DispatchQueue(label: "tracefox.archive.browser.more").async {
+            do {
+                let next = try TraceFoxLocalArchive.store(mediaBox: context.account.postbox.mediaBox).records(before: cursor)
+                DispatchQueue.main.async {
+                    loadingMore = false
+                    recordsPromise.set(.single((existing + next, false, next.count == 100)))
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    loadingMore = false
+                    recordsPromise.set(.single((existing, true, true)))
+                }
+            }
+        }
+    }
     controller.didDisappear = { [weak cloud] _ in cloud?.cancel() }
     shareImpl = { [weak controller] record in
         guard let controller = controller else { return }

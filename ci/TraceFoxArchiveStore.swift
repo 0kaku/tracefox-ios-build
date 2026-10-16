@@ -26,6 +26,12 @@ public struct TraceFoxArchiveRecord: Codable {
     fileprivate var key: String { return "\(peer)_\(namespace)_\(message)" }
 }
 
+public struct TraceFoxArchiveCursor {
+    fileprivate let timestamp: Int32
+    fileprivate let key: String
+    public init(record: TraceFoxArchiveRecord) { timestamp = record.timestamp; key = record.key }
+}
+
 public final class TraceFoxArchiveStore {
     private let root: URL
     private let manager = FileManager.default
@@ -108,7 +114,7 @@ public final class TraceFoxArchiveStore {
         }
     }
 
-    public func records(limit: Int = 100) throws -> [TraceFoxArchiveRecord] {
+    public func records(limit: Int = 100, before: TraceFoxArchiveCursor? = nil) throws -> [TraceFoxArchiveRecord] {
         lock.lock(); defer { lock.unlock() }
         var records: [TraceFoxArchiveRecord] = []
         for item in try manager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) where item.pathExtension == "json" {
@@ -118,7 +124,10 @@ public final class TraceFoxArchiveStore {
                   let size = (attributes[.size] as? NSNumber)?.int64Value,
                   size <= 1024 * 1024,
                   let data = try? Data(contentsOf: path), data.count <= 1024 * 1024 else { continue }
-            if let value = try? JSONDecoder().decode(TraceFoxArchiveRecord.self, from: data) { records.append(value) }
+            if let value = try? JSONDecoder().decode(TraceFoxArchiveRecord.self, from: data) {
+                if let cursor = before, !(value.timestamp < cursor.timestamp || (value.timestamp == cursor.timestamp && value.key < cursor.key)) { continue }
+                records.append(value)
+            }
         }
         return Array(records.sorted {
             if $0.timestamp != $1.timestamp { return $0.timestamp > $1.timestamp }

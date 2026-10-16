@@ -85,6 +85,15 @@ import Foundation
         let resilient = try quota.records()
         precondition(resilient.count == 1 && resilient[0].text == small.text)
         do { _ = try quota.record(peer: 9, namespace: 0, message: 9); fatalError("Oversized record read") } catch {}
+        let paged = try TraceFoxArchiveStore(root: folder.appendingPathComponent("paged"))
+        for id: Int32 in 1...205 {
+            try paged.save(TraceFoxArchiveRecord(peer: 42, namespace: 0, message: id, timestamp: 100, text: "page", deleted: true, files: []))
+        }
+        let page1 = try paged.records()
+        let page2 = try paged.records(before: TraceFoxArchiveCursor(record: page1.last!))
+        let page3 = try paged.records(before: TraceFoxArchiveCursor(record: page2.last!))
+        precondition(page1.count == 100 && page2.count == 100 && page3.count == 5)
+        precondition(Set((page1 + page2 + page3).map { $0.message }).count == 205)
         print("PASS: independent media, persistence, signed IDs, owner isolation, path guards and text-record quota")
     }
 
