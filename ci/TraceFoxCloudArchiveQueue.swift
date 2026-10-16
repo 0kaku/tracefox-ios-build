@@ -42,6 +42,7 @@ public final class TraceFoxCloudArchiveQueue {
         let data = try Data(contentsOf: file)
         guard data.count <= maxBytes, let state = try? JSONDecoder().decode(State.self, from: data),
               state.version == 1, state.entries.count <= maxEntries else { throw TraceFoxCloudQueueError.invalidState }
+        for entry in state.entries { try entry.payload.validate() }
         return state
     }
 
@@ -62,6 +63,7 @@ public final class TraceFoxCloudArchiveQueue {
 
     @discardableResult public func enqueue(_ payload: TraceFoxCloudArchivePayload) throws -> UUID {
         lock.lock(); defer { lock.unlock() }
+        try payload.validate()
         var state = try read()
         if let last = state.entries.last, last.payload == payload { return last.id }
         let entry = TraceFoxCloudQueueEntry(id: UUID(), payload: payload)

@@ -57,6 +57,7 @@ public final class TraceFoxBotLinkClient: TraceFoxBotClaiming, TraceFoxCloudSubm
     @discardableResult
     public func submit(_ payload: TraceFoxCloudArchivePayload, credentials: TraceFoxBotLinkCredentials,
                        completion: @escaping (Result<Int64, Error>) -> Void) throws -> TraceFoxBotClaimTask {
+        try payload.validate()
         guard credentials.ownerId > 0, credentials.token.utf8.count == 43,
               credentials.token.range(of: "^[A-Za-z0-9_-]{43}$", options: .regularExpression) != nil else {
             throw TraceFoxBotLinkError.invalidResponse

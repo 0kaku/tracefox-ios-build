@@ -1,7 +1,7 @@
 import Foundation
 
 public enum TraceFoxCloudArchiveEvent: String, Codable { case message, edited, deleted }
-public enum TraceFoxCloudArchivePayloadError: Error { case invalidText, invalidTitle, invalidDate, invalidTTL }
+public enum TraceFoxCloudArchivePayloadError: Error { case invalidText, invalidTitle, invalidDate, invalidTTL, invalidIdentity }
 
 // Mirrors the existing AndroidMessage backend schema. Encoding does not enqueue
 // or transmit an event. Native callers must first derive a supported cloud identity.
@@ -26,5 +26,24 @@ public struct TraceFoxCloudArchivePayload: Codable, Equatable {
         chat_id = identity.chatId; message_id = identity.messageId; chat_type = identity.chatType
         self.title = title; self.text = text; self.date = date
         ttl_seconds = ttlSeconds; temporary = (ttlSeconds ?? 0) > 0; self.event = event
+    }
+
+    // Codable decoding can bypass the public validating initializer. Revalidate
+    // persisted payloads before returning them from the queue or sending HTTP.
+    public func validate() throws {
+        guard chat_id >= -(1 << 52), chat_id <= (1 << 52) else { throw TraceFoxCloudArchivePayloadError.invalidIdentity }
+        let namespace: Int32
+        let peer: Int64
+        switch chat_type {
+        case "private": namespace = 0; peer = chat_id
+        case "group": namespace = 1; peer = -chat_id
+        case "channel": namespace = 2; peer = -chat_id - 1_000_000_000_000
+        default: throw TraceFoxCloudArchivePayloadError.invalidIdentity
+        }
+        guard let identity = TraceFoxCloudArchiveIdentity(peerNamespace: namespace, peerId: peer, messageNamespace: 0, messageId: message_id) else {
+            throw TraceFoxCloudArchivePayloadError.invalidIdentity
+        }
+        let checked = try TraceFoxCloudArchivePayload(identity: identity, title: title, text: text, date: date, ttlSeconds: ttl_seconds, event: event)
+        guard checked == self else { throw TraceFoxCloudArchivePayloadError.invalidIdentity }
     }
 }

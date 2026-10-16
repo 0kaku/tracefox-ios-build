@@ -44,6 +44,16 @@ import Foundation
             try writerB.acknowledge(item.id)
         }
         precondition(texts.count == 30)
+        let validQueue = try TraceFoxCloudArchiveQueue(root: root.appendingPathComponent("invalid-payload"))
+        try validQueue.enqueue(a)
+        let statePath = root.appendingPathComponent("invalid-payload/pending.json")
+        var state = try JSONSerialization.jsonObject(with: Data(contentsOf: statePath)) as! [String: Any]
+        var entries = state["entries"] as! [[String: Any]]
+        var invalid = entries[0]["payload"] as! [String: Any]
+        invalid["message_id"] = 0
+        entries[0]["payload"] = invalid; state["entries"] = entries
+        try JSONSerialization.data(withJSONObject: state).write(to: statePath)
+        do { _ = try validQueue.first(); fatalError("Invalid persisted payload accepted") } catch {}
         print("PASS: durable FIFO/reopen, adjacent duplicate coalescing, ordered acknowledgement, quota, account isolation and corruption errors; no network")
         print("PASS: concurrent writers across two queue instances preserve all 30 distinct events")
     }
