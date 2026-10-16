@@ -7,7 +7,8 @@ public enum TraceFoxBotCredentialError: Error {
 }
 
 // The service has no access-group override: credentials stay in this app's
-// Keychain scope. Account keys use Telegram user IDs, not the selected UI index.
+// Keychain scope. Native UI uses stable local account-record IDs, with Telegram
+// owner validation on read/write. Owner-only scope remains available to host tests.
 public final class TraceFoxBotCredentialStore {
     private let service: String
     private let accountRecordId: Int64?

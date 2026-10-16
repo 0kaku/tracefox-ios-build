@@ -6,8 +6,12 @@ private final class StubProtocol: URLProtocol {
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
-        precondition(request.url?.path == "/api/android/link" && request.httpMethod == "POST")
-        precondition(request.value(forHTTPHeaderField: "Authorization") == nil)
+        if request.url?.path == "/api/android/status" {
+            precondition(request.httpMethod == "GET" && request.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true)
+        } else {
+            precondition(request.url?.path == "/api/android/link" && request.httpMethod == "POST")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == nil)
+        }
         let response = HTTPURLResponse(url: request.url!, statusCode: Self.status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Self.body)
@@ -88,8 +92,24 @@ private final class ControlledClient: TraceFoxBotClaiming {
         controlled.callbacks[1](.success(TraceFoxBotLinkCredentials(ownerId: 43, token: String(repeating: "c", count: 43), archiveAvailable: false)))
         let current = try raceStore.read(ownerId: 43)
         precondition(current?.ownerId == 43 && currentDelivered)
+        let credential = TraceFoxBotLinkCredentials(ownerId: 42, token: String(repeating: "a", count: 43), archiveAvailable: false)
+        func checkStatus() throws -> Result<TraceFoxBotDeviceStatus, Error> {
+            let done = DispatchSemaphore(value: 0)
+            var result: Result<TraceFoxBotDeviceStatus, Error>?
+            try client.status(credentials: credential) { result = $0; done.signal() }
+            precondition(done.wait(timeout: .now() + 5) == .success)
+            return result!
+        }
+        for (owner, expiry, accepted) in [(Int64(42), Int64(Date().timeIntervalSince1970) + 600, true), (43, Int64(Date().timeIntervalSince1970) + 600, false), (42, 1, false)] {
+            StubProtocol.body = try JSONSerialization.data(withJSONObject: ["connected": true, "owner_id": owner, "archive_available": false, "expires_at": expiry])
+            switch try checkStatus() {
+            case .success: precondition(accepted)
+            case .failure: precondition(!accepted)
+            }
+        }
         print("PASS: actual URLSession claim client with URLProtocol fixtures; pending/success/foreign owner/HTTP error/size limits; no live network")
         print("PASS: coordinator explicit begin/cancel, validated claim-to-Keychain flow; synthetic account only")
         print("PASS: deterministic late-response/account-switch race and duplicate poll rejection")
+        print("PASS: authenticated device status, owner equality and expiration checks; URLProtocol fixtures only")
     }
 }
