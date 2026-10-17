@@ -1,0 +1,8 @@
+{
+  "version_code": 71896,
+  "version_name": "13.0.2-TraceFox.21",
+  "size": 51256957,
+  "sha256": "0b89fbeb823af6068278698172b30a513c49c47d764ea51613f817c8adc05c1a",
+  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v21/TraceFox-Android.apk",
+  "notes": "Очищення сховища: кеш перегляду, копії груп/каналів або весь локальний архів. Нові копії — лише з особистих чатів. Незалежний канал оновлень через GitHub."
+}
