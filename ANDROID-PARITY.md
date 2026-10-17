@@ -19,3 +19,12 @@ No new device login, Apple login, purchases or automation activation was perform
 
 
 Secret-cloud follow-up: see SECRET-CLOUD.md for the newly implemented stable-ID secret-copy transport and pending deployment/device checks. Earlier local-only secret scope describes previous builds.
+
+
+## Reliability update, 2026-10-17
+
+Prepared changes: local archive quota 5 GiB (64 MiB per file unchanged), persistent per-record 120-second backoff keyed by the complete record digest, immediate eligibility after a record changes, fresh temporary records selected before ordinary backlog, independent metadata/media failures. Foreground suspension still pauses work; the queue resumes when iOS permits execution. Upload acknowledgement now requires authenticated archive readback with exact archive ID, chat identity, normal message identity and matching SHA-256 of the retained bytes. A positive PUT response alone is insufficient.
+
+Local media is deliberately retained in this candidate. Automatic immediate eviction and cloud-only replay are not yet ported to iOS; existing acknowledgements are not deletion receipts. Multiple retained media variants and historical media revisions must remain local until each has a stable independently recoverable remote identity. This candidate must not be described as full Android retention parity or as a tested iPhone release.
+
+Validation: local Python contracts, macOS Swift storage/ledger/URLSession regression workflow, then full native CI. Physical iPhone sign-in, fresh one-view capture-to-web and signed installation remain required device checks.

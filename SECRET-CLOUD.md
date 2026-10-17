@@ -9,3 +9,6 @@ Identity: native secret peer namespace 3, message namespace 1, positive Int32 se
 Server routes enforce device credentials and Premium owner access, metadata before media, max 64 MiB/file, idempotent reupload, deletion and TTL preservation. New DB table `client_secret_message_identities` is created by normal startup schema initialization. Existing live server has NOT been restarted; earlier automatic approval rejected restarting it, so deployment remains pending.
 
 Validation: backend ASGI tests cover owner isolation, duplicate metadata/media, invalid/extreme Int64 values, TTL and deletion. Swift workflow covers native bridge fixtures, exact Int64 JSON and fake-HTTP upload routing. Native compilation and physical iPhone login/upload remain separate checks. Do not call the feature deployed or device-tested on the basis of host tests.
+
+
+Build 38903506278 failed in SGSettingsUI: retained status client was written but not read under warnings-as-errors. Fixed by explicitly retaining the client through request cancellation with withExtendedLifetime. 29 local recipe tests passed. User manually restarted backend; health and both secret API routes verified live. Physical iPhone upload remains unverified.

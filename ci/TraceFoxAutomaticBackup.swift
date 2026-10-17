@@ -151,6 +151,7 @@ public final class TraceFoxAutomaticBackup {
                 guard let payload = try? TraceFoxCloudArchiveBridge.backupPayload(record: record) else {
                     try ledger.deferRecord(record); continue
                 }
+                do {
                 task = try client.submit(payload, credentials: stored) { [weak self] result in
                     self?.queue.async { [weak self] in
                         guard let self = self, !self.stopped else { return }
@@ -161,6 +162,7 @@ public final class TraceFoxAutomaticBackup {
                         }
                     }
                 }
+                } catch { recordFailed(record, error) }
                 return
             }
         } catch { schedule(60) }
