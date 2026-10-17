@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 public enum TraceFoxBotLinkClientError: Error {
     case transport, invalidResponse, httpStatus(Int)
@@ -139,6 +140,56 @@ public final class TraceFoxBotLinkClient: TraceFoxBotClaiming, TraceFoxCloudSubm
                 completion(.failure(TraceFoxBotLinkClientError.invalidResponse)); return
             }
             completion(.success(reply.archive_id))
+        }
+        task.resume(); return task
+    }
+
+    @discardableResult
+    public func verify(file: URL, archiveId: Int64, payload: TraceFoxBackupPayload,
+                       credentials: TraceFoxBotLinkCredentials,
+                       completion: @escaping (Result<Void, Error>) -> Void) throws -> TraceFoxBotClaimTask {
+        guard archiveId > 0, archiveId < Int64.max else { throw TraceFoxBotLinkClientError.invalidResponse }
+        try payload.validate()
+        let handle = try FileHandle(forReadingFrom: file)
+        defer { handle.closeFile() }
+        var digest = SHA256()
+        var total = 0
+        while true {
+            let bytes = handle.readData(ofLength: 256 * 1024)
+            if bytes.isEmpty { break }
+            total += bytes.count
+            guard total <= 64 * 1024 * 1024 else { throw TraceFoxBotLinkClientError.invalidResponse }
+            digest.update(data: bytes)
+        }
+        guard total > 0 else { throw TraceFoxBotLinkClientError.invalidResponse }
+        let checksum = digest.finalize().map { String(format: "%02x", $0) }.joined()
+        let chat: Int64
+        let message: Int64?
+        switch payload {
+        case let .cloud(value): chat = value.chat_id; message = Int64(value.message_id)
+        case let .secretChat(value): chat = -(2_000_000_000_000 + value.secret_chat_id); message = nil
+        }
+        var components = URLComponents(url: backupEndpoint(secret: false, resource: "archive"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "chat_id", value: String(chat)),
+                                URLQueryItem(name: "before", value: String(archiveId + 1)), URLQueryItem(name: "limit", value: "1")]
+        var request = URLRequest(url: components.url!)
+        request.setValue("Bearer " + credentials.token, forHTTPHeaderField: "Authorization")
+        let task = session.dataTask(with: request) { data, response, error in
+            if error != nil { completion(.failure(TraceFoxBotLinkClientError.transport)); return }
+            guard let response = response as? HTTPURLResponse else { completion(.failure(TraceFoxBotLinkClientError.invalidResponse)); return }
+            guard response.statusCode == 200 else { completion(.failure(TraceFoxBotLinkClientError.httpStatus(response.statusCode))); return }
+            guard let data = data, data.count <= 1024 * 1024,
+                  let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                  let items = object["items"] as? [[String: Any]], items.count == 1,
+                  let row = items.first,
+                  (row["id"] as? NSNumber)?.int64Value == archiveId,
+                  (row["chat_id"] as? NSNumber)?.int64Value == chat,
+                  message == nil || (row["message_id"] as? NSNumber)?.int64Value == message,
+                  row["media_available"] as? Bool == true,
+                  row["sha256"] as? String == checksum else {
+                completion(.failure(TraceFoxBotLinkClientError.invalidResponse)); return
+            }
+            completion(.success(()))
         }
         task.resume(); return task
     }

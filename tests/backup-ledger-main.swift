@@ -15,6 +15,16 @@ import Foundation
   let deletion = TraceFoxArchiveRecord(peer:42,namespace:0,message:1,timestamp:100,text:original.text,deleted:true,files:original.files)
   let media = TraceFoxArchiveRecord(peer:42,namespace:0,message:1,timestamp:100,text:original.text,deleted:false,files:["two.media.jpg"])
   for changed in [edit,deletion,media] { let found = try reopened.contains(changed);precondition(!found) }
+  let now = Date(timeIntervalSince1970: 1000)
+  try reopened.deferRecord(edit, now: now)
+  let deferred = try reopened.eligible(edit, now: now)
+  let independent = try reopened.eligible(media, now: now)
+  let expired = try reopened.eligible(edit, now: now.addingTimeInterval(121))
+  precondition(!deferred && independent && expired)
+  let retryReopened = try TraceFoxBackupLedger(root:root.appendingPathComponent("a"))
+  let persisted = try retryReopened.eligible(edit, now:now)
+  let isolated = try b.eligible(edit, now:now)
+  precondition(!persisted && isolated)
   try Data("broken".utf8).write(to:root.appendingPathComponent("a/sent.json"))
   do { _ = try TraceFoxBackupLedger(root:root.appendingPathComponent("a"));fatalError("Corrupt ledger silently reset") } catch {}
   print("PASS: durable backup acknowledgement, edit/delete/media retry identity, account roots and corruption handling")

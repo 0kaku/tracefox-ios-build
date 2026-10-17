@@ -39,7 +39,7 @@ public final class TraceFoxArchiveStore {
     private let maxFile: Int64 = 64 * 1024 * 1024
     private let maxTotal: Int64
 
-    public init(root: URL, maxTotalBytes: Int64 = 1024 * 1024 * 1024) throws {
+    public init(root: URL, maxTotalBytes: Int64 = 5 * 1024 * 1024 * 1024) throws {
         guard maxTotalBytes > 0 else { throw CocoaError(.fileWriteOutOfSpace) }
         self.maxTotal = maxTotalBytes
         self.root = root.standardizedFileURL.resolvingSymlinksInPath()

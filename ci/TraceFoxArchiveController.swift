@@ -64,14 +64,14 @@ public func traceFoxArchiveController(context: AccountContext, mediaTabs: Bool =
         currentRecords = records
         var entries: [ArchiveEntry] = [
             .header(id: 0, section: .messages, text: "Локальний архів TraceFox", badge: nil),
-            .notice(id: 1, section: .messages, text: "Показано копій: \(records.count). Наступні записи можна завантажити нижче. Файли зберігаються лише коли були завантажені до видалення; ліміти: 64 MiB на файл, 1 GiB на архів.")
+            .notice(id: 1, section: .messages, text: "Показано копій: \(records.count). Наступні записи можна завантажити нижче. Файли зберігаються лише коли були завантажені до видалення; ліміти: 64 MiB на файл, 5 GiB на архів.")
         ]
         if loadFailed {
             entries.append(.notice(id: 2, section: .messages, text: records.isEmpty ? "Не вдалося відкрити архів. Натисніть «Оновити список копій», щоб спробувати ще раз." : "Не вдалося оновити список або завантажити сторінку. Уже відкриті копії залишилися на екрані; спробуйте ще раз нижче."))
         } else if records.isEmpty {
             entries.append(.notice(id: 2, section: .messages, text: "Збережених копій поки немає."))
         }
-        entries.append(.notice(id: 3, section: .messages, text: "Акаунт підключається до бота автоматично. Резервні копії підтримуваних хмарних чатів надсилаються у фоні під час роботи застосунку; секретні чати залишаються локальними."))
+        entries.append(.notice(id: 3, section: .messages, text: "Акаунт підключається до бота автоматично. Резервні копії підтримуваних хмарних чатів надсилаються у фоні під час роботи застосунку; доступні копії секретних чатів також надсилаються до вашого архіву."))
         if hasMore { entries.append(.action(id: 5, section: .messages, actionType: -2, text: "Показати наступні 100 копій", kind: .generic)) }
         entries.append(.action(id: 6, section: .messages, actionType: -3, text: "Оновити список копій", kind: .generic))
         let formatter = DateFormatter()

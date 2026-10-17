@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 private final class StubProtocol: URLProtocol {
     static var status = 200
@@ -8,6 +9,10 @@ private final class StubProtocol: URLProtocol {
     override func startLoading() {
         if request.url?.path == "/api/android/status" {
             precondition(request.httpMethod == "GET" && request.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true)
+        } else if request.url?.path == "/api/android/archive" {
+            precondition(request.httpMethod == "GET" && request.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true)
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+            precondition(query.contains(URLQueryItem(name: "before", value: "100")))
         } else if request.url?.path == "/api/android/messages" {
             precondition(request.httpMethod == "POST" && request.value(forHTTPHeaderField: "Authorization")?.hasPrefix("Bearer ") == true)
             precondition(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
@@ -181,6 +186,21 @@ private final class ImmediateClient: TraceFoxBotClaiming {
             else { try client.submit(secret, credentials: credential) { outcome = $0; done.signal() } }
             precondition(done.wait(timeout: .now() + 5) == .success)
             if case .success(99)? = outcome {} else { fatalError("Secret archive request failed") }
+        }
+        func verify() throws -> Result<Void, Error> {
+            let done = DispatchSemaphore(value: 0); var outcome: Result<Void, Error>?
+            try client.verify(file: file, archiveId: 99, payload: .cloud(temporary), credentials: credential) { outcome = $0; done.signal() }
+            precondition(done.wait(timeout: .now() + 5) == .success); return outcome!
+        }
+        let checksum = SHA256.hash(data: Data("synthetic-file".utf8)).map { String(format: "%02x", $0) }.joined()
+        let remote: [String: Any] = ["id": 99, "chat_id": 42, "message_id": 7, "media_available": true, "sha256": checksum]
+        StubProtocol.body = try JSONSerialization.data(withJSONObject: ["items": [remote]])
+        if case .success = try verify() {} else { fatalError("Matching server checksum rejected") }
+        for field in ["id", "chat_id", "message_id", "media_available", "sha256"] {
+            var invalid = remote
+            invalid[field] = field == "sha256" ? String(repeating: "0", count: 64) : field == "media_available" ? false : 1
+            StubProtocol.body = try JSONSerialization.data(withJSONObject: ["items": [invalid]])
+            if case .failure = try verify() {} else { fatalError("Mismatched server proof accepted") }
         }
         StubProtocol.status=401
         if case .failure = try upload() {} else { fatalError("Upload authorization failure accepted") }

@@ -79,7 +79,7 @@ public final class TraceFoxAutomaticBackup {
                         switch result {
                         case let .success(status):
                             if status.archive_available { self.nextRecord(stored) } else { self.schedule(60) }
-                        case let .failure(error): self.failed(error)
+                        case let .failure(error): self.recordFailed(record, error)
                         }
                     }
                 }
@@ -138,21 +138,26 @@ public final class TraceFoxAutomaticBackup {
         guard !stopped else { return }
         do {
             while true {
-                if batch.isEmpty {
+                let urgent = try archive.records(limit: 1, matching: { record in
+                    (record.ttlSeconds ?? 0) > 0 && ((try? self.ledger.eligible(record)) ?? false)
+                }).first
+                if urgent == nil && batch.isEmpty {
                     batch = try archive.records(before: cursor)
                     guard let last = batch.last else { cursor = nil; schedule(30); return }
                     cursor = TraceFoxArchiveCursor(record: last)
                 }
-                let record = batch.removeFirst()
-                if try ledger.contains(record) { continue }
-                guard let payload = try TraceFoxCloudArchiveBridge.backupPayload(record: record) else { continue }
+                let record = urgent ?? batch.removeFirst()
+                if !(try ledger.eligible(record)) { continue }
+                guard let payload = try? TraceFoxCloudArchiveBridge.backupPayload(record: record) else {
+                    try ledger.deferRecord(record); continue
+                }
                 task = try client.submit(payload, credentials: stored) { [weak self] result in
                     self?.queue.async { [weak self] in
                         guard let self = self, !self.stopped else { return }
                         self.task = nil
                         switch result {
                         case .success: self.upload(record, payload, stored)
-                        case let .failure(error): self.failed(error)
+                        case let .failure(error): self.recordFailed(record, error)
                         }
                     }
                 }
@@ -169,13 +174,33 @@ public final class TraceFoxAutomaticBackup {
                         guard let self = self, !self.stopped else { return }
                         self.task = nil
                         switch result {
-                        case .success: self.acknowledge(record)
-                        case let .failure(error): self.failed(error)
+                        case let .success(archiveId): self.verify(record, payload, stored, file, archiveId)
+                        case let .failure(error): self.recordFailed(record, error)
                         }
                     }
                 }
             } else { acknowledge(record) }
-        } catch { schedule(60) }
+        } catch { recordFailed(record, error) }
+    }
+    private func verify(_ record: TraceFoxArchiveRecord, _ payload: TraceFoxBackupPayload,
+                        _ stored: TraceFoxBotLinkCredentials, _ file: URL, _ archiveId: Int64) {
+        do {
+            task = try client.verify(file: file, archiveId: archiveId, payload: payload, credentials: stored) { [weak self] result in
+                self?.queue.async { [weak self] in
+                    guard let self = self, !self.stopped else { return }
+                    self.task = nil
+                    switch result {
+                    case .success: self.acknowledge(record)
+                    case let .failure(error): self.recordFailed(record, error)
+                    }
+                }
+            }
+        } catch { recordFailed(record, error) }
+    }
+    private func recordFailed(_ record: TraceFoxArchiveRecord, _ error: Error) {
+        do { try ledger.deferRecord(record) } catch { schedule(60); return }
+        if case .httpStatus(401)? = error as? TraceFoxBotLinkClientError { failed(error); return }
+        schedule(0.2)
     }
     private func acknowledge(_ record: TraceFoxArchiveRecord) {
         do { try ledger.acknowledge(record) } catch { schedule(60); return }
