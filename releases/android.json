@@ -1,8 +1,8 @@
 {
-  "version_code": 71910,
-  "version_name": "13.0.2-TraceFox.26",
-  "size": 51265214,
-  "sha256": "fbe4a227f5d35ec6edac23f5904f491b3b4cb1bfbd7bf8f2223a7d0ad8dc5305",
-  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v26/TraceFox-Android.apk",
-  "notes": "Фонова передача поступається прокручуванню та медіа й відкладається при низькому заряді або нагріванні. Стани збереження копій, стан черги та попередження про заповнення сховища."
+  "version_code": 71911,
+  "version_name": "13.0.2-TraceFox.27",
+  "size": 51267232,
+  "sha256": "225b83a1469d3e6f651a5cec8c6da5065da7dce74321bf53fd3f4f1c6d96c70a",
+  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v27/TraceFox-Android.apk",
+  "notes": "Оптимізація великих списків чатів: об’єднання повторних оновлень інтерфейсу, менше звернень до налаштувань закріплень, раннє відсікання груп і каналів від особистого архіву."
 }
