@@ -1,8 +1,8 @@
 {
-  "version_code": 71908,
-  "version_name": "13.0.2-TraceFox.24",
-  "size": 51257441,
-  "sha256": "9007bb27280e3db981ae0fa276da60fc9793efd595ef00850754592c9dc99879",
-  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v24/TraceFox-Android.apk",
-  "notes": "Виправлено збереження одноразових медіа та повідомлень із таймером у переписці: звичайні й секретні чати, відновлення після повторного відкриття чату."
+  "version_code": 71909,
+  "version_name": "13.0.2-TraceFox.25",
+  "size": 51263069,
+  "sha256": "487dd32796d97e9b7d1a672b7ffb9e7c3c6acf7a285ba46a6e3edbb06eb01a74",
+  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v25/TraceFox-Android.apk",
+  "notes": "Оптимізація чатів та медіа: менше обходів сховища й перемальовувань, розділені фонові черги, індекси бази та усунення повторних операцій. Локальні медіакопії більше не видаляються після передачі в бот."
 }
