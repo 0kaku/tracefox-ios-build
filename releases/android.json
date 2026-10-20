@@ -1,8 +1,8 @@
 {
-  "version_code": 71913,
-  "version_name": "13.0.2-TraceFox.29",
-  "size": 51265478,
-  "sha256": "5290c326fb4e2941da4f9a08acf0e8d6650a1d30edd43b481f9fd85f5e76d17f",
-  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v29/TraceFox-Android.apk",
-  "notes": "Коротші пояснення та чистіший інтерфейс налаштувань і архіву."
+  "version_code": 71914,
+  "version_name": "13.0.2-TraceFox.30",
+  "size": 51266270,
+  "sha256": "19d6f35a4be57a68355c9eaf9736f8d5d46a942610792dd6211a0f550a87698b",
+  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v30/TraceFox-Android.apk",
+  "notes": "Автоматична швидкодія без додаткових налаштувань."
 }
