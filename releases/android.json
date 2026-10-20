@@ -1,8 +1,8 @@
 {
-  "version_code": 71912,
-  "version_name": "13.0.2-TraceFox.28",
-  "size": 51267688,
-  "sha256": "ca22757b5a6ca9e42f198fad1c0b6388e756f105fffc283d5c17d856981a94f9",
-  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v28/TraceFox-Android.apk",
-  "notes": "Перемикач Легкий режим у налаштуваннях TraceFox: менше анімацій, ефектів і автовідтворення. Збереження та вивантаження в архів працюють як раніше. Звичайні налаштування ефектів відновлюються після вимкнення режиму."
+  "version_code": 71913,
+  "version_name": "13.0.2-TraceFox.29",
+  "size": 51265478,
+  "sha256": "5290c326fb4e2941da4f9a08acf0e8d6650a1d30edd43b481f9fd85f5e76d17f",
+  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v29/TraceFox-Android.apk",
+  "notes": "Коротші пояснення та чистіший інтерфейс налаштувань і архіву."
 }
