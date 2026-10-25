@@ -1,0 +1,16 @@
+<!doctype html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>TraceFox</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#1c2834;color:#eef3f8;font:17px system-ui}main{text-align:center;padding:24px;max-width:400px}button{background:#239ee8;color:white;border:0;border-radius:12px;padding:14px 26px;font:inherit;cursor:pointer}button:disabled{opacity:.5}p{color:#acbac8}</style></head><body><main><h1>TraceFox</h1><p id="status">Підключення…</p><button id="retry" hidden>Повторити</button></main><script>
+'use strict';
+const FEED='https://raw.githubusercontent.com/0kaku/tracefox-ios-build/refs/heads/entry-route/releases/entry.json';
+const status=document.getElementById('status'),retry=document.getElementById('retry');
+function target(value){try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&u.pathname==='/app'&&!u.search&&!u.hash&&(u.hostname==='tracefox-archive.tail55e691.ts.net'||/^(?:[a-z0-9]+\.lhr\.life|[a-z0-9]+(?:-[a-z0-9]+)+\.trycloudflare\.com)$/.test(u.hostname))?u:null;}catch(_){return null;}}
+async function get(url,ms){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),ms);try{const r=await fetch(url,{cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',signal:controller.signal});if(!r.ok)throw Error('unavailable');return await r.json();}finally{clearTimeout(timer);}}
+async function connect(){retry.hidden=true;status.textContent='Підключення…';try{
+const feed=await get(FEED+'?t='+Date.now(),10000),age=Date.now()-Date.parse(feed.updated_at);
+if(!Number.isFinite(age)||age < -60000||age>15*60*1000||!Array.isArray(feed.urls))throw Error('stale');
+const urls=feed.urls.slice(0,3).map(target).filter(Boolean);if(!urls.length)throw Error('empty');
+const reachable=await Promise.any(urls.map(async u=>{const health=await get(u.origin+'/health',7000);if(health.ok!==true)throw Error('health');return u;}));
+// Telegram authentication stays in the fragment, never in the feed request.
+reachable.search=location.search;reachable.hash=location.hash;location.replace(reachable.href);
+}catch(_){status.textContent='Не вдалося підключитися. Спробуйте ще раз.';retry.hidden=false;}}
+retry.onclick=connect;connect();
+</script></body></html>
