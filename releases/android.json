@@ -1,8 +1,8 @@
 {
-  "version_code": 71975,
-  "version_name": "13.0.2-TraceFox.37",
-  "size": 51275751,
-  "sha256": "1fe6065e250f029b158d541d7df19f3dca925437cf67ee6f4f7300d6dc11ea2f",
-  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v37/TraceFox-Android.apk",
+  "version_code": 71985,
+  "version_name": "13.0.2-TraceFox.38",
+  "size": 51275236,
+  "sha256": "8f4299fa97850a6df91b51779a3271f90e433a81cf55d5d4fe9350a0b22ef5f9",
+  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v38/TraceFox-Android.apk",
   "notes": ""
 }
