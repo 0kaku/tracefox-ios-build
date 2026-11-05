@@ -1,8 +1,8 @@
 {
-  "version_code": 71965,
-  "version_name": "13.0.2-TraceFox.36",
-  "size": 51275324,
-  "sha256": "7eeefa6ff15c7c03edbeefb62ffd696c379186937862ae5f72a3295412624676",
-  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v36/TraceFox-Android.apk",
-  "notes": "Пряма передача секретних і тимчасових медіа з телефона на сервер: перевірка SHA-256, підтвердження серверної копії та повторні спроби після обривів. Локальна копія зберігається."
+  "version_code": 71975,
+  "version_name": "13.0.2-TraceFox.37",
+  "size": 51275751,
+  "sha256": "1fe6065e250f029b158d541d7df19f3dca925437cf67ee6f4f7300d6dc11ea2f",
+  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v37/TraceFox-Android.apk",
+  "notes": "Передача медіа продовжується навіть при низькому заряді батареї. Пряма передача на VPS, перевірка SHA-256 і повторні спроби після обривів збережені."
 }
