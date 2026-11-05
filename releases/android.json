@@ -1,8 +1,8 @@
 {
-  "version_code": 71955,
-  "version_name": "13.0.2-TraceFox.35",
-  "size": 51274951,
-  "sha256": "b18afc6d74d257d6248cdfad01b0401a3b92096e9b1fc8ec705cfd4b433282eb",
-  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v35/TraceFox-Android.apk",
-  "notes": "Виправлено збереження доступних медіа після пізнього завантаження та при відкритті фото/відео. Секретні чати зберігаються локально на пристрої."
+  "version_code": 71965,
+  "version_name": "13.0.2-TraceFox.36",
+  "size": 51275324,
+  "sha256": "7eeefa6ff15c7c03edbeefb62ffd696c379186937862ae5f72a3295412624676",
+  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v36/TraceFox-Android.apk",
+  "notes": "Пряма передача секретних і тимчасових медіа з телефона на сервер: перевірка SHA-256, підтвердження серверної копії та повторні спроби після обривів. Локальна копія зберігається."
 }
