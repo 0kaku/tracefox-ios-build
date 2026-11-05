@@ -4,5 +4,5 @@
   "size": 51275751,
   "sha256": "1fe6065e250f029b158d541d7df19f3dca925437cf67ee6f4f7300d6dc11ea2f",
   "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v37/TraceFox-Android.apk",
-  "notes": "Передача медіа продовжується навіть при низькому заряді батареї. Пряма передача на VPS, перевірка SHA-256 і повторні спроби після обривів збережені."
+  "notes": ""
 }
