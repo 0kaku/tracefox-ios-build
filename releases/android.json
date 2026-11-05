@@ -1,8 +1,8 @@
 {
-  "version_code": 71915,
-  "version_name": "13.0.2-TraceFox.31",
-  "size": 51269088,
-  "sha256": "d53e6e75f5c319a0a3fcae6521ca560ca9dea41ddbb634f996127177c28b9a65",
-  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v31/TraceFox-Android.apk",
-  "notes": "Пошук по всьому архіву та фільтри: усі чати, особисті, групи, канали."
+  "version_code": 71955,
+  "version_name": "13.0.2-TraceFox.35",
+  "size": 51274951,
+  "sha256": "b18afc6d74d257d6248cdfad01b0401a3b92096e9b1fc8ec705cfd4b433282eb",
+  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v35/TraceFox-Android.apk",
+  "notes": "Виправлено збереження доступних медіа після пізнього завантаження та при відкритті фото/відео. Секретні чати зберігаються локально на пристрої."
 }
