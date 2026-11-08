@@ -4,15 +4,16 @@ const FEED='https://raw.githubusercontent.com/0kaku/tracefox-ios-build/refs/head
 const status=document.getElementById('status'),retry=document.getElementById('retry');
 function target(value){try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&u.pathname==='/app'&&!u.search&&!u.hash&&(u.hostname==='tracefox-archive.tail55e691.ts.net'||/^(?:[a-z0-9]+\.lhr\.life|[a-z0-9]+(?:-[a-z0-9]+)+\.trycloudflare\.com)$/.test(u.hostname))?u:null;}catch(_){return null;}}
 async function get(url,ms){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),ms);try{const r=await fetch(url,{cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',signal:controller.signal});if(!r.ok)throw Error('unavailable');return await r.json();}finally{clearTimeout(timer);}}
+const primary=new URL('https://tracefox-archive.tail55e691.ts.net/app');
+async function healthy(url){const health=await get(url.origin+'/health',7000);if(health.ok!==true)throw Error('health');return url;}
+async function reserve(){
+  const feed=await get(FEED+'?t='+Date.now(),10000),age=Date.now()-Date.parse(feed.updated_at);
+  if(!Number.isFinite(age)||age < -60000||age > 15*60*1000||!Array.isArray(feed.urls))throw Error('feed');
+  const urls=feed.urls.slice(0,3).map(target).filter(url=>url&&url.href!==primary.href);
+  return Promise.any([...new Map(urls.map(url=>[url.href,url])).values()].map(healthy));
+}
 async function connect(){retry.hidden=true;status.textContent='Підключення…';try{
-// The fixed VPS address remains valid while the owner's PC is offline.
-// Temporary tunnel addresses still require a fresh, validated feed.
-let urls=[target('https://tracefox-archive.tail55e691.ts.net/app')];
-try{const feed=await get(FEED+'?t='+Date.now(),10000),age=Date.now()-Date.parse(feed.updated_at);
-if(Number.isFinite(age)&&age>=-60000&&age<=15*60*1000&&Array.isArray(feed.urls))urls.push(...feed.urls.slice(0,3).map(target).filter(Boolean));
-}catch(_){}
-urls=[...new Map(urls.map(u=>[u.href,u])).values()];
-const reachable=await Promise.any(urls.map(async u=>{const health=await get(u.origin+'/health',7000);if(health.ok!==true)throw Error('health');return u;}));
+const reachable=await Promise.any([healthy(new URL(primary)),reserve()]);
 // Telegram authentication stays in the fragment, never in the feed request.
 reachable.search=location.search;reachable.hash=location.hash;location.replace(reachable.href);
 }catch(_){status.textContent='Не вдалося підключитися. Спробуйте ще раз.';retry.hidden=false;}}
