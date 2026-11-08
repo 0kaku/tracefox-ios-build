@@ -1,8 +1,8 @@
 {
-  "version_code": 72008,
-  "version_name": "13.0.2-TraceFox.43",
-  "size": 51283727,
-  "sha256": "2e0f9862f585c7dc6b788a0ce58079297976babd786d2d0384050ede5b91dc2d",
-  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v43/TraceFox-Android.apk",
+  "version_code": 72009,
+  "version_name": "13.0.2-TraceFox.44",
+  "size": 51292811,
+  "sha256": "fc1e0f0db232145dac078091c61682d38e44cec3e00be5e8248a02c642963b06",
+  "download_url": "https://github.com/0kaku/tracefox-ios-build/releases/download/android-v44/TraceFox-Android.apk",
   "notes": ""
 }
